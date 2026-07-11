@@ -1,0 +1,237 @@
+---
+title: "5 · Predicting fraud"
+subtitle: "From behavioural signals to flag probabilities — read with a fraud analyst's skepticism"
+---
+
+Chapter 3 established that *which* token dominates an address's inflow is
+associated with its fraud status. This chapter turns from association to
+conditional prediction: **can transaction behaviour — how much an address
+transacts, how much of that is token activity, and how quickly it sends — predict
+the likelihood of a fraud flag? And does the token ecosystem change what those
+behaviours mean?** The goal is inferential understanding of the signals, not a
+deployable classifier; that distinction ends up mattering more here than in any
+other chapter.
+
+## The analysis sample — and what the missing data quietly revealed
+
+```{r setup}
+library(dplyr)
+library(ggplot2)
+library(broom)
+library(car)
+library(pROC)
+
+trxs <- readRDS("data/eth_clean.rds")
+
+lr <- trxs %>%
+  filter(!is.na(total_erc20_tnxs)) %>%
+  add_count(erc20_most_rec_token_type, name = "type_n") %>%
+  mutate(
+    token_rec  = ifelse(type_n < 40, "Low Count", erc20_most_rec_token_type),
+    token_rec  = relevel(factor(token_rec), ref = "None"),
+    tnx_log    = log10(total_transactions + 1),
+    erc20_log  = log10(total_erc20_tnxs + 1),
+    avgmin_log = log10(avg_min_between_sent_tnx + 1)
+  )
+
+n_excl  <- sum(is.na(trxs$total_erc20_tnxs))
+excl_fr <- sum(trxs$flag[is.na(trxs$total_erc20_tnxs)])
+cat(nrow(lr), "addresses in sample;", sum(lr$flag), "flagged",
+    sprintf("(%.1f%%; majority-class baseline accuracy %.1f%%)",
+            100 * mean(lr$flag), 100 * (1 - mean(lr$flag))))
+```
+
+The model needs the ERC20 aggregates, so the `r n_excl` addresses lacking them are
+excluded — and that routine step surfaced something worth pausing on. The fraud
+share drops from 22.1% to `r sprintf("%.1f%%", 100 * mean(lr$flag))`, which is a
+large move for a 8% exclusion, and the reason is stark: **all `r n_excl` of the
+excluded addresses are flagged fraudulent** (`r excl_fr`/`r n_excl`). In other
+words, in this dataset "ERC20 data missing" perfectly predicts the label. The most
+plausible cause is mechanical — the fraud-address list appears to have been
+assembled separately and joined in, with the ERC20 aggregates never computed for
+part of that batch — which makes missingness an artefact of dataset construction,
+not a behaviour of fraudsters. The practical consequences: missingness must never
+be used as a feature on this data, and everything below speaks for token-active
+addresses only. Low-frequency token types (< 40 addresses) are pooled into a
+`"Low Count"` level so group estimates stay stable, and `"None"` — no dominant
+ERC20 inflow — is kept as the meaningful reference category.
+
+## Model 1: what behaviour alone says
+
+```{r m1}
+m1 <- glm(flag ~ tnx_log + erc20_log + avgmin_log,
+          family = binomial, data = lr)
+
+tidy(m1, exponentiate = TRUE, conf.int = TRUE) %>%
+  knitr::kable(digits = 3,
+               caption = "Model 1 — odds ratios with 95% CIs. Each OR is the multiplicative change in fraud odds for a ×10 change in the predictor.")
+```
+
+```{r m1-inline, include=FALSE}
+or1 <- exp(coef(m1))
+null_model <- glm(flag ~ 1, family = binomial, data = lr)
+mcfadden <- function(m) 1 - as.numeric(logLik(m)) / as.numeric(logLik(null_model))
+```
+
+Read on the ×10 scale, the three effects sketch a coherent behavioural
+fingerprint. A ×10 increase in **ordinary transactions** multiplies the fraud odds
+by `r round(or1[["tnx_log"]], 2)` — sustained, plain on-chain activity is what
+legitimacy looks like. A ×10 increase in **ERC20 token transactions** multiplies
+the odds by `r round(or1[["erc20_log"]], 1)` — the flagged population is
+token-transfer-heavy. And a ×10 *longer* **average gap between sent transactions**
+multiplies the odds by `r round(or1[["avgmin_log"]], 2)`: quicker sending rhythms
+lean fraudulent, echoing the cadence difference found in Chapter 3. Fraud, in this
+data, looks token-heavy, plain-transaction-light, and fast. The model's McFadden
+pseudo-R² is `r round(mcfadden(m1), 2)` and the VIFs below confirm the three
+signals are not proxies for one another.
+
+```{r m1-vif}
+vif(m1) %>% knitr::kable(col.names = "VIF",
+                         caption = "Variance inflation factors — the three behavioural signals carry distinct information.")
+```
+
+## From scores to decisions
+
+A logistic model outputs probabilities; a fraud screen must output decisions, and
+the gap between those two is where the operational honesty lives.
+
+```{r m1-roc}
+#| fig-cap: "Model 1 discrimination. AUC summarises ranking quality across all possible thresholds — it says nothing about any particular operating point."
+roc1 <- roc(lr$flag, fitted(m1), quiet = TRUE)
+plot(roc1, legacy.axes = TRUE, col = "#2C7FB8",
+     main = sprintf("Behaviour-only model — AUC %.2f", auc(roc1)))
+```
+
+```{r m1-cm}
+pred1 <- factor(ifelse(fitted(m1) >= 0.5, "Fraudulent", "Legitimate"),
+                levels = c("Legitimate", "Fraudulent"))
+cm <- table(pred1, lr$flag_f)
+
+data.frame(
+  ` ` = c("Predicted: Legitimate", "Predicted: Fraudulent"),
+  `Actual: Legitimate` = cm[, "Legitimate"],
+  `Actual: Fraudulent` = cm[, "Fraudulent"],
+  check.names = FALSE
+) %>%
+  knitr::kable(row.names = FALSE,
+               caption = "Confusion matrix at the default 0.5 threshold.")
+
+tibble(
+  metric = c("AUC", "Accuracy", "Sensitivity (fraud recall)", "Specificity"),
+  value = c(as.numeric(auc(roc1)),
+            sum(diag(cm)) / sum(cm),
+            cm["Fraudulent", "Fraudulent"] / sum(cm[, "Fraudulent"]),
+            cm["Legitimate", "Legitimate"] / sum(cm[, "Legitimate"]))
+) %>% knitr::kable(digits = 3, caption = "Operating characteristics at the 0.5 threshold.")
+```
+
+The matrix tells the story the accuracy number hides. At the default threshold the
+model catches `r cm["Fraudulent", "Fraudulent"]` of the
+`r sum(cm[, "Fraudulent"])` flagged addresses
+(sensitivity `r sprintf("%.0f%%", 100 * cm["Fraudulent","Fraudulent"] / sum(cm[,"Fraudulent"]))`)
+while raising only `r cm["Fraudulent", "Legitimate"]` false alarms — and still
+posts `r sprintf("%.0f%%", 100 * sum(diag(cm)) / sum(cm))` accuracy, because with
+85% of addresses legitimate, accuracy mostly rewards saying "legitimate". The 0.5
+threshold is a statistical default, not a policy: in a real fraud operation the
+threshold is set by the relative cost of a missed fraud versus an investigation,
+and lowering it here would trade a manageable rise in false alarms for a large
+gain in recall. The behavioural signals rank addresses usefully
+(AUC `r round(as.numeric(auc(roc1)), 2)`); what to *do* with the ranking is a
+business decision.
+
+## Model 2: does the token ecosystem change what behaviour means?
+
+Chapter 3 found the dominant received token *associated* with fraud; the sharper
+question is whether it *moderates* the behavioural signals — whether the same
+pattern of activity means something different inside different token communities.
+Model 2 interacts all three behavioural predictors with the token factor.
+
+```{r m2}
+m2 <- glm(flag ~ (tnx_log + erc20_log + avgmin_log) * token_rec,
+          family = binomial, data = lr)
+
+# Wald intervals: several token × behaviour cells contain (almost) only one
+# class, so profile-likelihood CIs do not converge for those terms.
+tidy(m2) %>%
+  mutate(OR = exp(estimate),
+         conf.low = exp(estimate - 1.96 * std.error),
+         conf.high = exp(estimate + 1.96 * std.error)) %>%
+  select(term, OR, conf.low, conf.high, p.value) %>%
+  filter(p.value < 0.05) %>%
+  arrange(p.value) %>%
+  knitr::kable(digits = 3,
+               caption = "Model 2 — significant terms only (Wald 95% CIs; full table in the folded code).")
+```
+
+The table already hints at what is happening: token-level odds ratios in the
+hundreds of thousands, interaction ORs indistinguishable from zero. Estimates that
+extreme are the signature of near-empty cells — token groups where one class
+barely occurs — pushing coefficients toward the boundary. They are shown for
+completeness, not interpreted individually; the trustworthy comparison is at the
+model level.
+
+```{r compare}
+lrt <- anova(m1, m2, test = "Chisq")
+roc2 <- roc(lr$flag, fitted(m2), quiet = TRUE)
+
+tibble(model = c("M1: behaviour only", "M2: + token-type interactions"),
+       pseudo_R2 = c(mcfadden(m1), mcfadden(m2)),
+       AUC = c(as.numeric(auc(roc1)), as.numeric(auc(roc2))),
+       AIC = c(AIC(m1), AIC(m2))) %>%
+  knitr::kable(digits = 3,
+               caption = "Model comparison. The likelihood-ratio test for the added terms is decisive (p < .001) — the interesting question is why.")
+```
+
+```{r roc-both}
+#| fig-cap: "Both models' ROC curves. The jump is real in-sample — and the next paragraphs explain why it should not be taken at face value."
+plot(roc1, col = "#2C7FB8", legacy.axes = TRUE,
+     main = "Adding token context: dramatic — and suspicious")
+plot(roc2, col = "#D95F02", add = TRUE)
+legend("bottomright",
+       legend = c(sprintf("M1: behaviour only (AUC %.2f)", auc(roc1)),
+                  sprintf("M2: + token context (AUC %.2f)", auc(roc2))),
+       col = c("#2C7FB8", "#D95F02"), lwd = 2, bty = "n")
+```
+
+```{r leakage, include=FALSE}
+perfect <- lr %>%
+  group_by(token_rec) %>%
+  summarise(n = n(), fraud_rate = mean(flag), .groups = "drop") %>%
+  filter(fraud_rate == 1)
+```
+
+### Reading the jump carefully
+
+An AUC of `r round(as.numeric(auc(roc2)), 2)` from a logistic regression should
+raise an eyebrow before it raises applause, and here the skepticism pays off. Part
+of the improvement is genuine segment structure — Chapter 3's association result
+made that expected. But a decisive part of it is simpler:
+**`r nrow(perfect)` token levels in this sample coincide perfectly with the fraud
+flag** — `r paste(sprintf("*%s* (n = %d)", perfect$token_rec, perfect$n), collapse = " and ")`
+are flagged fraudulent without exception. Both are known spam-airdrop tokens, and
+the likely mechanism runs through how the dataset was built: the fraud list appears
+to draw heavily on addresses swept up in those scam ecosystems, so receiving these
+tokens is partly a *consequence* of how the label was constructed rather than an
+independent behavioural signal. Combined with the missingness artefact found
+earlier, the message is consistent: this dataset rewards models that memorise its
+construction.
+
+For anyone taking this analysis toward a production model, three practices follow
+naturally: validate out-of-time rather than in-sample, so construction artefacts
+stop paying; ablate token *identity* and check how much discrimination survives on
+behaviour alone (here, an AUC of `r round(as.numeric(auc(roc1)), 2)`); and treat
+token context as segment information whose meaning must be re-learned as scam
+ecosystems change, not as a stable feature. Read that way, Model 2 is best
+understood as strong evidence that token context *carries* signal — and a worked
+example of why a fraud analyst never deploys an in-sample 0.98.
+
+## What this chapter established
+
+Behaviour alone ranks addresses usefully — token-heavy, plain-transaction-light,
+fast-cadence profiles carry materially higher flag odds — and token context adds
+real but contaminated lift whose honest assessment requires validation this
+cross-sectional dataset cannot provide. The estimates speak for token-active
+addresses, against a label of undocumented provenance, in-sample only; the
+deployment-grade treatment of this problem — held-out protocols, imbalance
+handling, cost-sensitive thresholds — is the subject of the dedicated
+machine-learning project that this suite's conclusions point toward.

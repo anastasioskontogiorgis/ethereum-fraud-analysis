@@ -1,0 +1,53 @@
+---
+title: "Ethereum Fraud Analytics"
+subtitle: "A statistical investigation of fraudulent behaviour on the Ethereum blockchain"
+---
+
+**One dataset, one question, five lenses.** This suite investigates what
+distinguishes fraudulent from legitimate Ethereum addresses using the
+[Kaggle Ethereum Fraud Detection dataset](https://www.kaggle.com/datasets/vagifa/ethereum-frauddetection-dataset)
+— **9,841 addresses × 50 aggregated transaction features, 22.1% flagged as
+fraudulent** — through exploratory analysis in Python and statistical inference and
+modelling in R, on a single canonical data preparation.
+
+*Guiding question: what patterns in transaction volume, frequency, timing and token
+types indicate illicit activity and differentiate fraudulent Ethereum addresses
+from legitimate ones?*
+
+## How the suite is organised
+
+| Chapter | Track | What it does |
+|---|---|---|
+| [1 · Data & preparation](01-data.qmd) | R | The single canonical cleaning pipeline every chapter consumes, with every decision justified once. |
+| [2 · Exploration](02-exploration.ipynb) | Python | Cleaning, distributions, class imbalance, behavioural/risk/correlation analysis, drill-down scenarios. |
+| [3 · Hypothesis testing](03-inference.qmd) | R | Five research questions; explicit assumption checks; parametric and non-parametric estimators side by side. |
+| [4 · Linear regression](04-balances-mlr.qmd) | R | Predicting Ether balance; does fraud status moderate the sent→balance relationship? |
+| [5 · Logistic regression](05-fraud-logr.qmd) | R | Predicting the fraud flag; do token ecosystems moderate the behavioural signals? Odds ratios, ROC/AUC. |
+| [6 · Conclusions](06-conclusions.qmd) | — | Findings synthesis, limitations, and where this goes next. |
+
+## Headline findings
+
+1. **Volume and frequency are partially independent signals** — Ether sent and
+   transaction count correlate positively but only weakly-to-moderately (RQ1), so
+   each carries information the other doesn't.
+2. **Addresses operate at a characteristic value scale** — average values received
+   and sent are strongly positively correlated (RQ2).
+3. **Fraud has a rhythm** — the average time between sent transactions differs
+   significantly between fraudulent and legitimate addresses (RQ3): a behavioural
+   signal independent of value.
+4. **Token ecosystems matter** — Ether outflow differs across dominant sent-token
+   types (RQ4), and the dominant *received* token type is significantly associated
+   with fraud status (RQ5).
+5. **Two label-leakage artefacts uncovered** — all 829 addresses lacking ERC20
+   aggregates are fraudulent, and two scam-airdrop token types are 100%-fraud label
+   proxies (Ch. 5). Any predictive use of this dataset must be leakage-aware.
+6. **The moderation question** — the regression chapters test whether fraud status
+   changes the sent→balance relationship (Ch. 4) and whether token type changes the
+   behaviour→fraud relationship (Ch. 5), with full diagnostics, effect sizes and
+   model comparisons.
+
+## Provenance & method notes
+
+This suite consolidates four R analyses and one Python notebook originally produced
+as separate projects. All code is shown (folded) on every page; the site is fully
+reproducible with `quarto render`.

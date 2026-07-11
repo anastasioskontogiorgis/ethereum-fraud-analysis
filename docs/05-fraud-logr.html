@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.38">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>5 · Predicting fraud – Ethereum Fraud Analytics</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-15634bcf2e68342d4ad2dfa704d543f6.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-a0f9fd0d421825b736dc1bbcbcba2219.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">Ethereum Fraud Analytics</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./index.html"> 
+<span class="menu-text">Overview</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./01-data.html"> 
+<span class="menu-text">Data</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./02-exploration.html"> 
+<span class="menu-text">Exploration (Python)</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./03-inference.html"> 
+<span class="menu-text">Hypothesis testing</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./04-balances-mlr.html"> 
+<span class="menu-text">Linear regression</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link active" href="./05-fraud-logr.html" aria-current="page"> 
+<span class="menu-text">Logistic regression</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./06-conclusions.html"> 
+<span class="menu-text">Conclusions</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#the-analysis-sample-and-what-the-missing-data-quietly-revealed" id="toc-the-analysis-sample-and-what-the-missing-data-quietly-revealed" class="nav-link active" data-scroll-target="#the-analysis-sample-and-what-the-missing-data-quietly-revealed">The analysis sample — and what the missing data quietly revealed</a></li>
+  <li><a href="#model-1-what-behaviour-alone-says" id="toc-model-1-what-behaviour-alone-says" class="nav-link" data-scroll-target="#model-1-what-behaviour-alone-says">Model 1: what behaviour alone says</a></li>
+  <li><a href="#from-scores-to-decisions" id="toc-from-scores-to-decisions" class="nav-link" data-scroll-target="#from-scores-to-decisions">From scores to decisions</a></li>
+  <li><a href="#model-2-does-the-token-ecosystem-change-what-behaviour-means" id="toc-model-2-does-the-token-ecosystem-change-what-behaviour-means" class="nav-link" data-scroll-target="#model-2-does-the-token-ecosystem-change-what-behaviour-means">Model 2: does the token ecosystem change what behaviour means?</a>
+  <ul class="collapse">
+  <li><a href="#reading-the-jump-carefully" id="toc-reading-the-jump-carefully" class="nav-link" data-scroll-target="#reading-the-jump-carefully">Reading the jump carefully</a></li>
+  </ul></li>
+  <li><a href="#what-this-chapter-established" id="toc-what-this-chapter-established" class="nav-link" data-scroll-target="#what-this-chapter-established">What this chapter established</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">5 · Predicting fraud</h1><button type="button" class="btn code-tools-button dropdown-toggle" id="quarto-code-tools-menu" data-bs-toggle="dropdown" aria-expanded="false"><i class="bi"></i> Code</button><ul class="dropdown-menu dropdown-menu-end" aria-labelelledby="quarto-code-tools-menu"><li><a id="quarto-show-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Show All Code</a></li><li><a id="quarto-hide-all-code" class="dropdown-item" href="javascript:void(0)" role="button">Hide All Code</a></li><li><hr class="dropdown-divider"></li><li><a id="quarto-view-source" class="dropdown-item" href="javascript:void(0)" role="button">View Source</a></li></ul></div></div>
+<p class="subtitle lead">From behavioural signals to flag probabilities — read with a fraud analyst’s skepticism</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>Chapter 3 established that <em>which</em> token dominates an address’s inflow is associated with its fraud status. This chapter turns from association to conditional prediction: <strong>can transaction behaviour — how much an address transacts, how much of that is token activity, and how quickly it sends — predict the likelihood of a fraud flag? And does the token ecosystem change what those behaviours mean?</strong> The goal is inferential understanding of the signals, not a deployable classifier; that distinction ends up mattering more here than in any other chapter.</p>
+<section id="the-analysis-sample-and-what-the-missing-data-quietly-revealed" class="level2">
+<h2 class="anchored" data-anchor-id="the-analysis-sample-and-what-the-missing-data-quietly-revealed">The analysis sample — and what the missing data quietly revealed</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(broom)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(car)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pROC)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>trxs <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="st">"data/eth_clean.rds"</span>)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>lr <span class="ot">&lt;-</span> trxs <span class="sc">%&gt;%</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(total_erc20_tnxs)) <span class="sc">%&gt;%</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_count</span>(erc20_most_rec_token_type, <span class="at">name =</span> <span class="st">"type_n"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">token_rec  =</span> <span class="fu">ifelse</span>(type_n <span class="sc">&lt;</span> <span class="dv">40</span>, <span class="st">"Low Count"</span>, erc20_most_rec_token_type),</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">token_rec  =</span> <span class="fu">relevel</span>(<span class="fu">factor</span>(token_rec), <span class="at">ref =</span> <span class="st">"None"</span>),</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">tnx_log    =</span> <span class="fu">log10</span>(total_transactions <span class="sc">+</span> <span class="dv">1</span>),</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">erc20_log  =</span> <span class="fu">log10</span>(total_erc20_tnxs <span class="sc">+</span> <span class="dv">1</span>),</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">avgmin_log =</span> <span class="fu">log10</span>(avg_min_between_sent_tnx <span class="sc">+</span> <span class="dv">1</span>)</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>n_excl  <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(trxs<span class="sc">$</span>total_erc20_tnxs))</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>excl_fr <span class="ot">&lt;-</span> <span class="fu">sum</span>(trxs<span class="sc">$</span>flag[<span class="fu">is.na</span>(trxs<span class="sc">$</span>total_erc20_tnxs)])</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">nrow</span>(lr), <span class="st">"addresses in sample;"</span>, <span class="fu">sum</span>(lr<span class="sc">$</span>flag), <span class="st">"flagged"</span>,</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sprintf</span>(<span class="st">"(%.1f%%; majority-class baseline accuracy %.1f%%)"</span>,</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>            <span class="dv">100</span> <span class="sc">*</span> <span class="fu">mean</span>(lr<span class="sc">$</span>flag), <span class="dv">100</span> <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> <span class="fu">mean</span>(lr<span class="sc">$</span>flag))))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>9012 addresses in sample; 1350 flagged (15.0%; majority-class baseline accuracy 85.0%)</code></pre>
+</div>
+</div>
+<p>The model needs the ERC20 aggregates, so the 829 addresses lacking them are excluded — and that routine step surfaced something worth pausing on. The fraud share drops from 22.1% to 15.0%, which is a large move for a 8% exclusion, and the reason is stark: <strong>all 829 of the excluded addresses are flagged fraudulent</strong> (829/829). In other words, in this dataset “ERC20 data missing” perfectly predicts the label. The most plausible cause is mechanical — the fraud-address list appears to have been assembled separately and joined in, with the ERC20 aggregates never computed for part of that batch — which makes missingness an artefact of dataset construction, not a behaviour of fraudsters. The practical consequences: missingness must never be used as a feature on this data, and everything below speaks for token-active addresses only. Low-frequency token types (&lt; 40 addresses) are pooled into a <code>"Low Count"</code> level so group estimates stay stable, and <code>"None"</code> — no dominant ERC20 inflow — is kept as the meaningful reference category.</p>
+</section>
+<section id="model-1-what-behaviour-alone-says" class="level2">
+<h2 class="anchored" data-anchor-id="model-1-what-behaviour-alone-says">Model 1: what behaviour alone says</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>m1 <span class="ot">&lt;-</span> <span class="fu">glm</span>(flag <span class="sc">~</span> tnx_log <span class="sc">+</span> erc20_log <span class="sc">+</span> avgmin_log,</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>          <span class="at">family =</span> binomial, <span class="at">data =</span> lr)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">tidy</span>(m1, <span class="at">exponentiate =</span> <span class="cn">TRUE</span>, <span class="at">conf.int =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">3</span>,</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>               <span class="at">caption =</span> <span class="st">"Model 1 — odds ratios with 95% CIs. Each OR is the multiplicative change in fraud odds for a ×10 change in the predictor."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Model 1 — odds ratios with 95% CIs. Each OR is the multiplicative change in fraud odds for a ×10 change in the predictor.</caption>
+<colgroup>
+<col style="width: 17%">
+<col style="width: 13%">
+<col style="width: 14%">
+<col style="width: 14%">
+<col style="width: 11%">
+<col style="width: 13%">
+<col style="width: 14%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">term</th>
+<th style="text-align: right;">estimate</th>
+<th style="text-align: right;">std.error</th>
+<th style="text-align: right;">statistic</th>
+<th style="text-align: right;">p.value</th>
+<th style="text-align: right;">conf.low</th>
+<th style="text-align: right;">conf.high</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">(Intercept)</td>
+<td style="text-align: right;">0.675</td>
+<td style="text-align: right;">0.060</td>
+<td style="text-align: right;">-6.528</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.600</td>
+<td style="text-align: right;">0.760</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">tnx_log</td>
+<td style="text-align: right;">0.204</td>
+<td style="text-align: right;">0.070</td>
+<td style="text-align: right;">-22.820</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.178</td>
+<td style="text-align: right;">0.234</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">erc20_log</td>
+<td style="text-align: right;">4.601</td>
+<td style="text-align: right;">0.070</td>
+<td style="text-align: right;">21.925</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">4.016</td>
+<td style="text-align: right;">5.277</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">avgmin_log</td>
+<td style="text-align: right;">0.835</td>
+<td style="text-align: right;">0.022</td>
+<td style="text-align: right;">-8.165</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.799</td>
+<td style="text-align: right;">0.872</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Read on the ×10 scale, the three effects sketch a coherent behavioural fingerprint. A ×10 increase in <strong>ordinary transactions</strong> multiplies the fraud odds by 0.2 — sustained, plain on-chain activity is what legitimacy looks like. A ×10 increase in <strong>ERC20 token transactions</strong> multiplies the odds by 4.6 — the flagged population is token-transfer-heavy. And a ×10 <em>longer</em> <strong>average gap between sent transactions</strong> multiplies the odds by 0.83: quicker sending rhythms lean fraudulent, echoing the cadence difference found in Chapter 3. Fraud, in this data, looks token-heavy, plain-transaction-light, and fast. The model’s McFadden pseudo-R² is 0.12 and the VIFs below confirm the three signals are not proxies for one another.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">vif</span>(m1) <span class="sc">%&gt;%</span> knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">col.names =</span> <span class="st">"VIF"</span>,</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>                         <span class="at">caption =</span> <span class="st">"Variance inflation factors — the three behavioural signals carry distinct information."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Variance inflation factors — the three behavioural signals carry distinct information.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">VIF</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">tnx_log</td>
+<td style="text-align: right;">2.183933</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">erc20_log</td>
+<td style="text-align: right;">2.320851</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">avgmin_log</td>
+<td style="text-align: right;">1.332773</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="from-scores-to-decisions" class="level2">
+<h2 class="anchored" data-anchor-id="from-scores-to-decisions">From scores to decisions</h2>
+<p>A logistic model outputs probabilities; a fraud screen must output decisions, and the gap between those two is where the operational honesty lives.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>roc1 <span class="ot">&lt;-</span> <span class="fu">roc</span>(lr<span class="sc">$</span>flag, <span class="fu">fitted</span>(m1), <span class="at">quiet =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(roc1, <span class="at">legacy.axes =</span> <span class="cn">TRUE</span>, <span class="at">col =</span> <span class="st">"#2C7FB8"</span>,</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>     <span class="at">main =</span> <span class="fu">sprintf</span>(<span class="st">"Behaviour-only model — AUC %.2f"</span>, <span class="fu">auc</span>(roc1)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="05-fraud-logr_files/figure-html/m1-roc-1.png" class="img-fluid figure-img" width="768"></p>
+<figcaption>Model 1 discrimination. AUC summarises ranking quality across all possible thresholds — it says nothing about any particular operating point.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>pred1 <span class="ot">&lt;-</span> <span class="fu">factor</span>(<span class="fu">ifelse</span>(<span class="fu">fitted</span>(m1) <span class="sc">&gt;=</span> <span class="fl">0.5</span>, <span class="st">"Fraudulent"</span>, <span class="st">"Legitimate"</span>),</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>                <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"Legitimate"</span>, <span class="st">"Fraudulent"</span>))</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>cm <span class="ot">&lt;-</span> <span class="fu">table</span>(pred1, lr<span class="sc">$</span>flag_f)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at"> </span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"Predicted: Legitimate"</span>, <span class="st">"Predicted: Fraudulent"</span>),</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">Actual: Legitimate</span><span class="st">`</span> <span class="ot">=</span> cm[, <span class="st">"Legitimate"</span>],</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">Actual: Fraudulent</span><span class="st">`</span> <span class="ot">=</span> cm[, <span class="st">"Fraudulent"</span>],</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">row.names =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>               <span class="at">caption =</span> <span class="st">"Confusion matrix at the default 0.5 threshold."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Confusion matrix at the default 0.5 threshold.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">Actual: Legitimate</th>
+<th style="text-align: right;">Actual: Fraudulent</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Predicted: Legitimate</td>
+<td style="text-align: right;">7594</td>
+<td style="text-align: right;">1085</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Predicted: Fraudulent</td>
+<td style="text-align: right;">68</td>
+<td style="text-align: right;">265</td>
+</tr>
+</tbody>
+</table>
+</div>
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">metric =</span> <span class="fu">c</span>(<span class="st">"AUC"</span>, <span class="st">"Accuracy"</span>, <span class="st">"Sensitivity (fraud recall)"</span>, <span class="st">"Specificity"</span>),</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">value =</span> <span class="fu">c</span>(<span class="fu">as.numeric</span>(<span class="fu">auc</span>(roc1)),</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>            <span class="fu">sum</span>(<span class="fu">diag</span>(cm)) <span class="sc">/</span> <span class="fu">sum</span>(cm),</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>            cm[<span class="st">"Fraudulent"</span>, <span class="st">"Fraudulent"</span>] <span class="sc">/</span> <span class="fu">sum</span>(cm[, <span class="st">"Fraudulent"</span>]),</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>            cm[<span class="st">"Legitimate"</span>, <span class="st">"Legitimate"</span>] <span class="sc">/</span> <span class="fu">sum</span>(cm[, <span class="st">"Legitimate"</span>]))</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span> knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">3</span>, <span class="at">caption =</span> <span class="st">"Operating characteristics at the 0.5 threshold."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Operating characteristics at the 0.5 threshold.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">metric</th>
+<th style="text-align: right;">value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">AUC</td>
+<td style="text-align: right;">0.711</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Accuracy</td>
+<td style="text-align: right;">0.872</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Sensitivity (fraud recall)</td>
+<td style="text-align: right;">0.196</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Specificity</td>
+<td style="text-align: right;">0.991</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The matrix tells the story the accuracy number hides. At the default threshold the model catches 265 of the 1350 flagged addresses (sensitivity 20%) while raising only 68 false alarms — and still posts 87% accuracy, because with 85% of addresses legitimate, accuracy mostly rewards saying “legitimate”. The 0.5 threshold is a statistical default, not a policy: in a real fraud operation the threshold is set by the relative cost of a missed fraud versus an investigation, and lowering it here would trade a manageable rise in false alarms for a large gain in recall. The behavioural signals rank addresses usefully (AUC 0.71); what to <em>do</em> with the ranking is a business decision.</p>
+</section>
+<section id="model-2-does-the-token-ecosystem-change-what-behaviour-means" class="level2">
+<h2 class="anchored" data-anchor-id="model-2-does-the-token-ecosystem-change-what-behaviour-means">Model 2: does the token ecosystem change what behaviour means?</h2>
+<p>Chapter 3 found the dominant received token <em>associated</em> with fraud; the sharper question is whether it <em>moderates</em> the behavioural signals — whether the same pattern of activity means something different inside different token communities. Model 2 interacts all three behavioural predictors with the token factor.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>m2 <span class="ot">&lt;-</span> <span class="fu">glm</span>(flag <span class="sc">~</span> (tnx_log <span class="sc">+</span> erc20_log <span class="sc">+</span> avgmin_log) <span class="sc">*</span> token_rec,</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>          <span class="at">family =</span> binomial, <span class="at">data =</span> lr)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Wald intervals: several token × behaviour cells contain (almost) only one</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co"># class, so profile-likelihood CIs do not converge for those terms.</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="fu">tidy</span>(m2) <span class="sc">%&gt;%</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">OR =</span> <span class="fu">exp</span>(estimate),</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>         <span class="at">conf.low =</span> <span class="fu">exp</span>(estimate <span class="sc">-</span> <span class="fl">1.96</span> <span class="sc">*</span> std.error),</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>         <span class="at">conf.high =</span> <span class="fu">exp</span>(estimate <span class="sc">+</span> <span class="fl">1.96</span> <span class="sc">*</span> std.error)) <span class="sc">%&gt;%</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(term, OR, conf.low, conf.high, p.value) <span class="sc">%&gt;%</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(p.value <span class="sc">&lt;</span> <span class="fl">0.05</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(p.value) <span class="sc">%&gt;%</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">3</span>,</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>               <span class="at">caption =</span> <span class="st">"Model 2 — significant terms only (Wald 95% CIs; full table in the folded code)."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Model 2 — significant terms only (Wald 95% CIs; full table in the folded code).</caption>
+<colgroup>
+<col style="width: 51%">
+<col style="width: 14%">
+<col style="width: 10%">
+<col style="width: 14%">
+<col style="width: 8%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">term</th>
+<th style="text-align: right;">OR</th>
+<th style="text-align: right;">conf.low</th>
+<th style="text-align: right;">conf.high</th>
+<th style="text-align: right;">p.value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">token_recLow Count</td>
+<td style="text-align: right;">1.459604e+03</td>
+<td style="text-align: right;">506.676</td>
+<td style="text-align: right;">4.204747e+03</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">(Intercept)</td>
+<td style="text-align: right;">3.000000e-03</td>
+<td style="text-align: right;">0.001</td>
+<td style="text-align: right;">9.000000e-03</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">token_recLivepeer Token</td>
+<td style="text-align: right;">7.562441e+05</td>
+<td style="text-align: right;">36117.485</td>
+<td style="text-align: right;">1.583458e+07</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">erc20_log:token_recLivepeer Token</td>
+<td style="text-align: right;">0.000000e+00</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.000000e+00</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">token_recXENON</td>
+<td style="text-align: right;">3.364772e+03</td>
+<td style="text-align: right;">344.826</td>
+<td style="text-align: right;">3.283303e+04</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">token_recTronix</td>
+<td style="text-align: right;">6.183820e+02</td>
+<td style="text-align: right;">80.319</td>
+<td style="text-align: right;">4.760964e+03</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">erc20_log:token_recXENON</td>
+<td style="text-align: right;">1.000000e-03</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">8.000000e-03</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">erc20_log:token_recLow Count</td>
+<td style="text-align: right;">1.800000e-02</td>
+<td style="text-align: right;">0.004</td>
+<td style="text-align: right;">7.600000e-02</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">token_recDATAcoin</td>
+<td style="text-align: right;">1.891263e+04</td>
+<td style="text-align: right;">523.198</td>
+<td style="text-align: right;">6.836568e+05</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">token_recblockwell.ai KYC Casper Token</td>
+<td style="text-align: right;">1.965601e+05</td>
+<td style="text-align: right;">1397.492</td>
+<td style="text-align: right;">2.764658e+07</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">erc20_log</td>
+<td style="text-align: right;">3.083700e+01</td>
+<td style="text-align: right;">7.436</td>
+<td style="text-align: right;">1.278870e+02</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">token_recINS Promo</td>
+<td style="text-align: right;">5.086892e+04</td>
+<td style="text-align: right;">350.530</td>
+<td style="text-align: right;">7.382106e+06</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">erc20_log:token_recDATAcoin</td>
+<td style="text-align: right;">0.000000e+00</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.000000e+00</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">tnx_log:token_recblockwell.ai KYC Casper Token</td>
+<td style="text-align: right;">3.700000e-02</td>
+<td style="text-align: right;">0.007</td>
+<td style="text-align: right;">1.990000e-01</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">tnx_log:token_recVIU</td>
+<td style="text-align: right;">2.300000e-02</td>
+<td style="text-align: right;">0.002</td>
+<td style="text-align: right;">2.680000e-01</td>
+<td style="text-align: right;">0.003</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">tnx_log:token_recLivepeer Token</td>
+<td style="text-align: right;">1.430000e-01</td>
+<td style="text-align: right;">0.039</td>
+<td style="text-align: right;">5.230000e-01</td>
+<td style="text-align: right;">0.003</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">token_recVIU</td>
+<td style="text-align: right;">5.249525e+03</td>
+<td style="text-align: right;">15.544</td>
+<td style="text-align: right;">1.772910e+06</td>
+<td style="text-align: right;">0.004</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">tnx_log:token_recTronix</td>
+<td style="text-align: right;">2.390000e-01</td>
+<td style="text-align: right;">0.083</td>
+<td style="text-align: right;">6.850000e-01</td>
+<td style="text-align: right;">0.008</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">tnx_log:token_recLow Count</td>
+<td style="text-align: right;">4.080000e-01</td>
+<td style="text-align: right;">0.210</td>
+<td style="text-align: right;">7.910000e-01</td>
+<td style="text-align: right;">0.008</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">avgmin_log:token_recDATAcoin</td>
+<td style="text-align: right;">2.386000e+00</td>
+<td style="text-align: right;">1.215</td>
+<td style="text-align: right;">4.685000e+00</td>
+<td style="text-align: right;">0.012</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">erc20_log:token_recTronix</td>
+<td style="text-align: right;">1.060000e-01</td>
+<td style="text-align: right;">0.018</td>
+<td style="text-align: right;">6.370000e-01</td>
+<td style="text-align: right;">0.014</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">token_recKickCoin</td>
+<td style="text-align: right;">6.731249e+18</td>
+<td style="text-align: right;">5478.739</td>
+<td style="text-align: right;">8.270099e+33</td>
+<td style="text-align: right;">0.014</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">token_recEOS</td>
+<td style="text-align: right;">9.960050e+04</td>
+<td style="text-align: right;">9.085</td>
+<td style="text-align: right;">1.091914e+09</td>
+<td style="text-align: right;">0.015</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">tnx_log:token_recINS Promo</td>
+<td style="text-align: right;">3.000000e-03</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">3.340000e-01</td>
+<td style="text-align: right;">0.016</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">avgmin_log:token_recKickCoin</td>
+<td style="text-align: right;">0.000000e+00</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">3.310000e-01</td>
+<td style="text-align: right;">0.024</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">tnx_log:token_recKickCoin</td>
+<td style="text-align: right;">0.000000e+00</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">2.370000e-01</td>
+<td style="text-align: right;">0.026</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">tnx_log:token_recOmiseGO</td>
+<td style="text-align: right;">1.840000e-01</td>
+<td style="text-align: right;">0.034</td>
+<td style="text-align: right;">9.980000e-01</td>
+<td style="text-align: right;">0.050</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The table already hints at what is happening: token-level odds ratios in the hundreds of thousands, interaction ORs indistinguishable from zero. Estimates that extreme are the signature of near-empty cells — token groups where one class barely occurs — pushing coefficients toward the boundary. They are shown for completeness, not interpreted individually; the trustworthy comparison is at the model level.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>lrt <span class="ot">&lt;-</span> <span class="fu">anova</span>(m1, m2, <span class="at">test =</span> <span class="st">"Chisq"</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>roc2 <span class="ot">&lt;-</span> <span class="fu">roc</span>(lr<span class="sc">$</span>flag, <span class="fu">fitted</span>(m2), <span class="at">quiet =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(<span class="at">model =</span> <span class="fu">c</span>(<span class="st">"M1: behaviour only"</span>, <span class="st">"M2: + token-type interactions"</span>),</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>       <span class="at">pseudo_R2 =</span> <span class="fu">c</span>(<span class="fu">mcfadden</span>(m1), <span class="fu">mcfadden</span>(m2)),</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>       <span class="at">AUC =</span> <span class="fu">c</span>(<span class="fu">as.numeric</span>(<span class="fu">auc</span>(roc1)), <span class="fu">as.numeric</span>(<span class="fu">auc</span>(roc2))),</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>       <span class="at">AIC =</span> <span class="fu">c</span>(<span class="fu">AIC</span>(m1), <span class="fu">AIC</span>(m2))) <span class="sc">%&gt;%</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">3</span>,</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>               <span class="at">caption =</span> <span class="st">"Model comparison. The likelihood-ratio test for the added terms is decisive (p &lt; .001) — the interesting question is why."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Model comparison. The likelihood-ratio test for the added terms is decisive (p &lt; .001) — the interesting question is why.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">model</th>
+<th style="text-align: right;">pseudo_R2</th>
+<th style="text-align: right;">AUC</th>
+<th style="text-align: right;">AIC</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">M1: behaviour only</td>
+<td style="text-align: right;">0.117</td>
+<td style="text-align: right;">0.711</td>
+<td style="text-align: right;">6727.439</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">M2: + token-type interactions</td>
+<td style="text-align: right;">0.753</td>
+<td style="text-align: right;">0.983</td>
+<td style="text-align: right;">2023.764</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(roc1, <span class="at">col =</span> <span class="st">"#2C7FB8"</span>, <span class="at">legacy.axes =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>     <span class="at">main =</span> <span class="st">"Adding token context: dramatic — and suspicious"</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(roc2, <span class="at">col =</span> <span class="st">"#D95F02"</span>, <span class="at">add =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">"bottomright"</span>,</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>       <span class="at">legend =</span> <span class="fu">c</span>(<span class="fu">sprintf</span>(<span class="st">"M1: behaviour only (AUC %.2f)"</span>, <span class="fu">auc</span>(roc1)),</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>                  <span class="fu">sprintf</span>(<span class="st">"M2: + token context (AUC %.2f)"</span>, <span class="fu">auc</span>(roc2))),</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>       <span class="at">col =</span> <span class="fu">c</span>(<span class="st">"#2C7FB8"</span>, <span class="st">"#D95F02"</span>), <span class="at">lwd =</span> <span class="dv">2</span>, <span class="at">bty =</span> <span class="st">"n"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="05-fraud-logr_files/figure-html/roc-both-1.png" class="img-fluid figure-img" width="768"></p>
+<figcaption>Both models’ ROC curves. The jump is real in-sample — and the next paragraphs explain why it should not be taken at face value.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<section id="reading-the-jump-carefully" class="level3">
+<h3 class="anchored" data-anchor-id="reading-the-jump-carefully">Reading the jump carefully</h3>
+<p>An AUC of 0.98 from a logistic regression should raise an eyebrow before it raises applause, and here the skepticism pays off. Part of the improvement is genuine segment structure — Chapter 3’s association result made that expected. But a decisive part of it is simpler: <strong>2 token levels in this sample coincide perfectly with the fraud flag</strong> — <em>Blockwell say NOTSAFU</em> (n = 779) and <em>GSENetwork</em> (n = 80) are flagged fraudulent without exception. Both are known spam-airdrop tokens, and the likely mechanism runs through how the dataset was built: the fraud list appears to draw heavily on addresses swept up in those scam ecosystems, so receiving these tokens is partly a <em>consequence</em> of how the label was constructed rather than an independent behavioural signal. Combined with the missingness artefact found earlier, the message is consistent: this dataset rewards models that memorise its construction.</p>
+<p>For anyone taking this analysis toward a production model, three practices follow naturally: validate out-of-time rather than in-sample, so construction artefacts stop paying; ablate token <em>identity</em> and check how much discrimination survives on behaviour alone (here, an AUC of 0.71); and treat token context as segment information whose meaning must be re-learned as scam ecosystems change, not as a stable feature. Read that way, Model 2 is best understood as strong evidence that token context <em>carries</em> signal — and a worked example of why a fraud analyst never deploys an in-sample 0.98.</p>
+</section>
+</section>
+<section id="what-this-chapter-established" class="level2">
+<h2 class="anchored" data-anchor-id="what-this-chapter-established">What this chapter established</h2>
+<p>Behaviour alone ranks addresses usefully — token-heavy, plain-transaction-light, fast-cadence profiles carry materially higher flag odds — and token context adds real but contaminated lift whose honest assessment requires validation this cross-sectional dataset cannot provide. The estimates speak for token-active addresses, against a label of undocumented provenance, in-sample only; the deployment-grade treatment of this problem — held-out protocols, imbalance handling, cost-sensitive thresholds — is the subject of the dedicated machine-learning project that this suite’s conclusions point toward.</p>
+
+
+<!-- -->
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+    const viewSource = window.document.getElementById('quarto-view-source') ||
+                       window.document.getElementById('quarto-code-tools-source');
+    if (viewSource) {
+      const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+      viewSource.addEventListener("click", function(e) {
+        if (sourceUrl) {
+          // rstudio viewer pane
+          if (/\bcapabilities=\b/.test(window.location)) {
+            window.open(sourceUrl);
+          } else {
+            window.location.href = sourceUrl;
+          }
+        } else {
+          const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+          modal.show();
+        }
+        return false;
+      });
+    }
+    function toggleCodeHandler(show) {
+      return function(e) {
+        const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+        for (let i=0; i<detailsSrc.length; i++) {
+          const details = detailsSrc[i].parentElement;
+          if (show) {
+            details.open = true;
+          } else {
+            details.removeAttribute("open");
+          }
+        }
+        const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+        const fromCls = show ? "hidden" : "unhidden";
+        const toCls = show ? "unhidden" : "hidden";
+        for (let i=0; i<cellCodeDivs.length; i++) {
+          const codeDiv = cellCodeDivs[i];
+          if (codeDiv.classList.contains(fromCls)) {
+            codeDiv.classList.remove(fromCls);
+            codeDiv.classList.add(toCls);
+          } 
+        }
+        return false;
+      }
+    }
+    const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+    if (hideAllCode) {
+      hideAllCode.addEventListener("click", toggleCodeHandler(false));
+    }
+    const showAllCode = window.document.getElementById("quarto-show-all-code");
+    if (showAllCode) {
+      showAllCode.addEventListener("click", toggleCodeHandler(true));
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "5 · Predicting fraud"</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="an">subtitle:</span><span class="co"> "From behavioural signals to flag probabilities — read with a fraud analyst's skepticism"</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>Chapter 3 established that *which* token dominates an address's inflow is</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>associated with its fraud status. This chapter turns from association to</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>conditional prediction: **can transaction behaviour — how much an address</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>transacts, how much of that is token activity, and how quickly it sends — predict</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>the likelihood of a fraud flag? And does the token ecosystem change what those</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>behaviours mean?** The goal is inferential understanding of the signals, not a</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>deployable classifier; that distinction ends up mattering more here than in any</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>other chapter.</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a><span class="fu">## The analysis sample — and what the missing data quietly revealed</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a><span class="in">```{r setup}</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(broom)</span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(car)</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pROC)</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>trxs <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="st">"data/eth_clean.rds"</span>)</span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>lr <span class="ot">&lt;-</span> trxs <span class="sc">%&gt;%</span></span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(total_erc20_tnxs)) <span class="sc">%&gt;%</span></span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_count</span>(erc20_most_rec_token_type, <span class="at">name =</span> <span class="st">"type_n"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>    <span class="at">token_rec  =</span> <span class="fu">ifelse</span>(type_n <span class="sc">&lt;</span> <span class="dv">40</span>, <span class="st">"Low Count"</span>, erc20_most_rec_token_type),</span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">token_rec  =</span> <span class="fu">relevel</span>(<span class="fu">factor</span>(token_rec), <span class="at">ref =</span> <span class="st">"None"</span>),</span>
+<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">tnx_log    =</span> <span class="fu">log10</span>(total_transactions <span class="sc">+</span> <span class="dv">1</span>),</span>
+<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a>    <span class="at">erc20_log  =</span> <span class="fu">log10</span>(total_erc20_tnxs <span class="sc">+</span> <span class="dv">1</span>),</span>
+<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">avgmin_log =</span> <span class="fu">log10</span>(avg_min_between_sent_tnx <span class="sc">+</span> <span class="dv">1</span>)</span>
+<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a>n_excl  <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(trxs<span class="sc">$</span>total_erc20_tnxs))</span>
+<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a>excl_fr <span class="ot">&lt;-</span> <span class="fu">sum</span>(trxs<span class="sc">$</span>flag[<span class="fu">is.na</span>(trxs<span class="sc">$</span>total_erc20_tnxs)])</span>
+<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">nrow</span>(lr), <span class="st">"addresses in sample;"</span>, <span class="fu">sum</span>(lr<span class="sc">$</span>flag), <span class="st">"flagged"</span>,</span>
+<span id="cb11-40"><a href="#cb11-40" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sprintf</span>(<span class="st">"(%.1f%%; majority-class baseline accuracy %.1f%%)"</span>,</span>
+<span id="cb11-41"><a href="#cb11-41" aria-hidden="true" tabindex="-1"></a>            <span class="dv">100</span> <span class="sc">*</span> <span class="fu">mean</span>(lr<span class="sc">$</span>flag), <span class="dv">100</span> <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> <span class="fu">mean</span>(lr<span class="sc">$</span>flag))))</span>
+<span id="cb11-42"><a href="#cb11-42" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-43"><a href="#cb11-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-44"><a href="#cb11-44" aria-hidden="true" tabindex="-1"></a>The model needs the ERC20 aggregates, so the <span class="in">`r n_excl`</span> addresses lacking them are</span>
+<span id="cb11-45"><a href="#cb11-45" aria-hidden="true" tabindex="-1"></a>excluded — and that routine step surfaced something worth pausing on. The fraud</span>
+<span id="cb11-46"><a href="#cb11-46" aria-hidden="true" tabindex="-1"></a>share drops from 22.1% to <span class="in">`r sprintf("%.1f%%", 100 * mean(lr$flag))`</span>, which is a</span>
+<span id="cb11-47"><a href="#cb11-47" aria-hidden="true" tabindex="-1"></a>large move for a 8% exclusion, and the reason is stark: **all <span class="in">`r n_excl`</span> of the</span>
+<span id="cb11-48"><a href="#cb11-48" aria-hidden="true" tabindex="-1"></a>excluded addresses are flagged fraudulent** (<span class="in">`r excl_fr`</span>/<span class="in">`r n_excl`</span>). In other</span>
+<span id="cb11-49"><a href="#cb11-49" aria-hidden="true" tabindex="-1"></a>words, in this dataset "ERC20 data missing" perfectly predicts the label. The most</span>
+<span id="cb11-50"><a href="#cb11-50" aria-hidden="true" tabindex="-1"></a>plausible cause is mechanical — the fraud-address list appears to have been</span>
+<span id="cb11-51"><a href="#cb11-51" aria-hidden="true" tabindex="-1"></a>assembled separately and joined in, with the ERC20 aggregates never computed for</span>
+<span id="cb11-52"><a href="#cb11-52" aria-hidden="true" tabindex="-1"></a>part of that batch — which makes missingness an artefact of dataset construction,</span>
+<span id="cb11-53"><a href="#cb11-53" aria-hidden="true" tabindex="-1"></a>not a behaviour of fraudsters. The practical consequences: missingness must never</span>
+<span id="cb11-54"><a href="#cb11-54" aria-hidden="true" tabindex="-1"></a>be used as a feature on this data, and everything below speaks for token-active</span>
+<span id="cb11-55"><a href="#cb11-55" aria-hidden="true" tabindex="-1"></a>addresses only. Low-frequency token types (&lt; 40 addresses) are pooled into a</span>
+<span id="cb11-56"><a href="#cb11-56" aria-hidden="true" tabindex="-1"></a><span class="in">`"Low Count"`</span> level so group estimates stay stable, and <span class="in">`"None"`</span> — no dominant</span>
+<span id="cb11-57"><a href="#cb11-57" aria-hidden="true" tabindex="-1"></a>ERC20 inflow — is kept as the meaningful reference category.</span>
+<span id="cb11-58"><a href="#cb11-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-59"><a href="#cb11-59" aria-hidden="true" tabindex="-1"></a><span class="fu">## Model 1: what behaviour alone says</span></span>
+<span id="cb11-60"><a href="#cb11-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-61"><a href="#cb11-61" aria-hidden="true" tabindex="-1"></a><span class="in">```{r m1}</span></span>
+<span id="cb11-62"><a href="#cb11-62" aria-hidden="true" tabindex="-1"></a>m1 <span class="ot">&lt;-</span> <span class="fu">glm</span>(flag <span class="sc">~</span> tnx_log <span class="sc">+</span> erc20_log <span class="sc">+</span> avgmin_log,</span>
+<span id="cb11-63"><a href="#cb11-63" aria-hidden="true" tabindex="-1"></a>          <span class="at">family =</span> binomial, <span class="at">data =</span> lr)</span>
+<span id="cb11-64"><a href="#cb11-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-65"><a href="#cb11-65" aria-hidden="true" tabindex="-1"></a><span class="fu">tidy</span>(m1, <span class="at">exponentiate =</span> <span class="cn">TRUE</span>, <span class="at">conf.int =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-66"><a href="#cb11-66" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">3</span>,</span>
+<span id="cb11-67"><a href="#cb11-67" aria-hidden="true" tabindex="-1"></a>               <span class="at">caption =</span> <span class="st">"Model 1 — odds ratios with 95% CIs. Each OR is the multiplicative change in fraud odds for a ×10 change in the predictor."</span>)</span>
+<span id="cb11-68"><a href="#cb11-68" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-69"><a href="#cb11-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-70"><a href="#cb11-70" aria-hidden="true" tabindex="-1"></a><span class="in">```{r m1-inline, include=FALSE}</span></span>
+<span id="cb11-71"><a href="#cb11-71" aria-hidden="true" tabindex="-1"></a>or1 <span class="ot">&lt;-</span> <span class="fu">exp</span>(<span class="fu">coef</span>(m1))</span>
+<span id="cb11-72"><a href="#cb11-72" aria-hidden="true" tabindex="-1"></a>null_model <span class="ot">&lt;-</span> <span class="fu">glm</span>(flag <span class="sc">~</span> <span class="dv">1</span>, <span class="at">family =</span> binomial, <span class="at">data =</span> lr)</span>
+<span id="cb11-73"><a href="#cb11-73" aria-hidden="true" tabindex="-1"></a>mcfadden <span class="ot">&lt;-</span> <span class="cf">function</span>(m) <span class="dv">1</span> <span class="sc">-</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(m)) <span class="sc">/</span> <span class="fu">as.numeric</span>(<span class="fu">logLik</span>(null_model))</span>
+<span id="cb11-74"><a href="#cb11-74" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-75"><a href="#cb11-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-76"><a href="#cb11-76" aria-hidden="true" tabindex="-1"></a>Read on the ×10 scale, the three effects sketch a coherent behavioural</span>
+<span id="cb11-77"><a href="#cb11-77" aria-hidden="true" tabindex="-1"></a>fingerprint. A ×10 increase in **ordinary transactions** multiplies the fraud odds</span>
+<span id="cb11-78"><a href="#cb11-78" aria-hidden="true" tabindex="-1"></a>by <span class="in">`r round(or1[["tnx_log"]], 2)`</span> — sustained, plain on-chain activity is what</span>
+<span id="cb11-79"><a href="#cb11-79" aria-hidden="true" tabindex="-1"></a>legitimacy looks like. A ×10 increase in **ERC20 token transactions** multiplies</span>
+<span id="cb11-80"><a href="#cb11-80" aria-hidden="true" tabindex="-1"></a>the odds by <span class="in">`r round(or1[["erc20_log"]], 1)`</span> — the flagged population is</span>
+<span id="cb11-81"><a href="#cb11-81" aria-hidden="true" tabindex="-1"></a>token-transfer-heavy. And a ×10 *longer* **average gap between sent transactions**</span>
+<span id="cb11-82"><a href="#cb11-82" aria-hidden="true" tabindex="-1"></a>multiplies the odds by <span class="in">`r round(or1[["avgmin_log"]], 2)`</span>: quicker sending rhythms</span>
+<span id="cb11-83"><a href="#cb11-83" aria-hidden="true" tabindex="-1"></a>lean fraudulent, echoing the cadence difference found in Chapter 3. Fraud, in this</span>
+<span id="cb11-84"><a href="#cb11-84" aria-hidden="true" tabindex="-1"></a>data, looks token-heavy, plain-transaction-light, and fast. The model's McFadden</span>
+<span id="cb11-85"><a href="#cb11-85" aria-hidden="true" tabindex="-1"></a>pseudo-R² is <span class="in">`r round(mcfadden(m1), 2)`</span> and the VIFs below confirm the three</span>
+<span id="cb11-86"><a href="#cb11-86" aria-hidden="true" tabindex="-1"></a>signals are not proxies for one another.</span>
+<span id="cb11-87"><a href="#cb11-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-88"><a href="#cb11-88" aria-hidden="true" tabindex="-1"></a><span class="in">```{r m1-vif}</span></span>
+<span id="cb11-89"><a href="#cb11-89" aria-hidden="true" tabindex="-1"></a><span class="fu">vif</span>(m1) <span class="sc">%&gt;%</span> knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">col.names =</span> <span class="st">"VIF"</span>,</span>
+<span id="cb11-90"><a href="#cb11-90" aria-hidden="true" tabindex="-1"></a>                         <span class="at">caption =</span> <span class="st">"Variance inflation factors — the three behavioural signals carry distinct information."</span>)</span>
+<span id="cb11-91"><a href="#cb11-91" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-92"><a href="#cb11-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-93"><a href="#cb11-93" aria-hidden="true" tabindex="-1"></a><span class="fu">## From scores to decisions</span></span>
+<span id="cb11-94"><a href="#cb11-94" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-95"><a href="#cb11-95" aria-hidden="true" tabindex="-1"></a>A logistic model outputs probabilities; a fraud screen must output decisions, and</span>
+<span id="cb11-96"><a href="#cb11-96" aria-hidden="true" tabindex="-1"></a>the gap between those two is where the operational honesty lives.</span>
+<span id="cb11-97"><a href="#cb11-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-98"><a href="#cb11-98" aria-hidden="true" tabindex="-1"></a><span class="in">```{r m1-roc}</span></span>
+<span id="cb11-99"><a href="#cb11-99" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Model 1 discrimination. AUC summarises ranking quality across all possible thresholds — it says nothing about any particular operating point."</span></span>
+<span id="cb11-100"><a href="#cb11-100" aria-hidden="true" tabindex="-1"></a>roc1 <span class="ot">&lt;-</span> <span class="fu">roc</span>(lr<span class="sc">$</span>flag, <span class="fu">fitted</span>(m1), <span class="at">quiet =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-101"><a href="#cb11-101" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(roc1, <span class="at">legacy.axes =</span> <span class="cn">TRUE</span>, <span class="at">col =</span> <span class="st">"#2C7FB8"</span>,</span>
+<span id="cb11-102"><a href="#cb11-102" aria-hidden="true" tabindex="-1"></a>     <span class="at">main =</span> <span class="fu">sprintf</span>(<span class="st">"Behaviour-only model — AUC %.2f"</span>, <span class="fu">auc</span>(roc1)))</span>
+<span id="cb11-103"><a href="#cb11-103" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-104"><a href="#cb11-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-105"><a href="#cb11-105" aria-hidden="true" tabindex="-1"></a><span class="in">```{r m1-cm}</span></span>
+<span id="cb11-106"><a href="#cb11-106" aria-hidden="true" tabindex="-1"></a>pred1 <span class="ot">&lt;-</span> <span class="fu">factor</span>(<span class="fu">ifelse</span>(<span class="fu">fitted</span>(m1) <span class="sc">&gt;=</span> <span class="fl">0.5</span>, <span class="st">"Fraudulent"</span>, <span class="st">"Legitimate"</span>),</span>
+<span id="cb11-107"><a href="#cb11-107" aria-hidden="true" tabindex="-1"></a>                <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"Legitimate"</span>, <span class="st">"Fraudulent"</span>))</span>
+<span id="cb11-108"><a href="#cb11-108" aria-hidden="true" tabindex="-1"></a>cm <span class="ot">&lt;-</span> <span class="fu">table</span>(pred1, lr<span class="sc">$</span>flag_f)</span>
+<span id="cb11-109"><a href="#cb11-109" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-110"><a href="#cb11-110" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
+<span id="cb11-111"><a href="#cb11-111" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at"> </span><span class="st">`</span> <span class="ot">=</span> <span class="fu">c</span>(<span class="st">"Predicted: Legitimate"</span>, <span class="st">"Predicted: Fraudulent"</span>),</span>
+<span id="cb11-112"><a href="#cb11-112" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">Actual: Legitimate</span><span class="st">`</span> <span class="ot">=</span> cm[, <span class="st">"Legitimate"</span>],</span>
+<span id="cb11-113"><a href="#cb11-113" aria-hidden="true" tabindex="-1"></a>  <span class="st">`</span><span class="at">Actual: Fraudulent</span><span class="st">`</span> <span class="ot">=</span> cm[, <span class="st">"Fraudulent"</span>],</span>
+<span id="cb11-114"><a href="#cb11-114" aria-hidden="true" tabindex="-1"></a>  <span class="at">check.names =</span> <span class="cn">FALSE</span></span>
+<span id="cb11-115"><a href="#cb11-115" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-116"><a href="#cb11-116" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">row.names =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb11-117"><a href="#cb11-117" aria-hidden="true" tabindex="-1"></a>               <span class="at">caption =</span> <span class="st">"Confusion matrix at the default 0.5 threshold."</span>)</span>
+<span id="cb11-118"><a href="#cb11-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-119"><a href="#cb11-119" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(</span>
+<span id="cb11-120"><a href="#cb11-120" aria-hidden="true" tabindex="-1"></a>  <span class="at">metric =</span> <span class="fu">c</span>(<span class="st">"AUC"</span>, <span class="st">"Accuracy"</span>, <span class="st">"Sensitivity (fraud recall)"</span>, <span class="st">"Specificity"</span>),</span>
+<span id="cb11-121"><a href="#cb11-121" aria-hidden="true" tabindex="-1"></a>  <span class="at">value =</span> <span class="fu">c</span>(<span class="fu">as.numeric</span>(<span class="fu">auc</span>(roc1)),</span>
+<span id="cb11-122"><a href="#cb11-122" aria-hidden="true" tabindex="-1"></a>            <span class="fu">sum</span>(<span class="fu">diag</span>(cm)) <span class="sc">/</span> <span class="fu">sum</span>(cm),</span>
+<span id="cb11-123"><a href="#cb11-123" aria-hidden="true" tabindex="-1"></a>            cm[<span class="st">"Fraudulent"</span>, <span class="st">"Fraudulent"</span>] <span class="sc">/</span> <span class="fu">sum</span>(cm[, <span class="st">"Fraudulent"</span>]),</span>
+<span id="cb11-124"><a href="#cb11-124" aria-hidden="true" tabindex="-1"></a>            cm[<span class="st">"Legitimate"</span>, <span class="st">"Legitimate"</span>] <span class="sc">/</span> <span class="fu">sum</span>(cm[, <span class="st">"Legitimate"</span>]))</span>
+<span id="cb11-125"><a href="#cb11-125" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span> knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">3</span>, <span class="at">caption =</span> <span class="st">"Operating characteristics at the 0.5 threshold."</span>)</span>
+<span id="cb11-126"><a href="#cb11-126" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-127"><a href="#cb11-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-128"><a href="#cb11-128" aria-hidden="true" tabindex="-1"></a>The matrix tells the story the accuracy number hides. At the default threshold the</span>
+<span id="cb11-129"><a href="#cb11-129" aria-hidden="true" tabindex="-1"></a>model catches <span class="in">`r cm["Fraudulent", "Fraudulent"]`</span> of the</span>
+<span id="cb11-130"><a href="#cb11-130" aria-hidden="true" tabindex="-1"></a><span class="in">`r sum(cm[, "Fraudulent"])`</span> flagged addresses</span>
+<span id="cb11-131"><a href="#cb11-131" aria-hidden="true" tabindex="-1"></a>(sensitivity <span class="in">`r sprintf("%.0f%%", 100 * cm["Fraudulent","Fraudulent"] / sum(cm[,"Fraudulent"]))`</span>)</span>
+<span id="cb11-132"><a href="#cb11-132" aria-hidden="true" tabindex="-1"></a>while raising only <span class="in">`r cm["Fraudulent", "Legitimate"]`</span> false alarms — and still</span>
+<span id="cb11-133"><a href="#cb11-133" aria-hidden="true" tabindex="-1"></a>posts <span class="in">`r sprintf("%.0f%%", 100 * sum(diag(cm)) / sum(cm))`</span> accuracy, because with</span>
+<span id="cb11-134"><a href="#cb11-134" aria-hidden="true" tabindex="-1"></a>85% of addresses legitimate, accuracy mostly rewards saying "legitimate". The 0.5</span>
+<span id="cb11-135"><a href="#cb11-135" aria-hidden="true" tabindex="-1"></a>threshold is a statistical default, not a policy: in a real fraud operation the</span>
+<span id="cb11-136"><a href="#cb11-136" aria-hidden="true" tabindex="-1"></a>threshold is set by the relative cost of a missed fraud versus an investigation,</span>
+<span id="cb11-137"><a href="#cb11-137" aria-hidden="true" tabindex="-1"></a>and lowering it here would trade a manageable rise in false alarms for a large</span>
+<span id="cb11-138"><a href="#cb11-138" aria-hidden="true" tabindex="-1"></a>gain in recall. The behavioural signals rank addresses usefully</span>
+<span id="cb11-139"><a href="#cb11-139" aria-hidden="true" tabindex="-1"></a>(AUC <span class="in">`r round(as.numeric(auc(roc1)), 2)`</span>); what to *do* with the ranking is a</span>
+<span id="cb11-140"><a href="#cb11-140" aria-hidden="true" tabindex="-1"></a>business decision.</span>
+<span id="cb11-141"><a href="#cb11-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-142"><a href="#cb11-142" aria-hidden="true" tabindex="-1"></a><span class="fu">## Model 2: does the token ecosystem change what behaviour means?</span></span>
+<span id="cb11-143"><a href="#cb11-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-144"><a href="#cb11-144" aria-hidden="true" tabindex="-1"></a>Chapter 3 found the dominant received token *associated* with fraud; the sharper</span>
+<span id="cb11-145"><a href="#cb11-145" aria-hidden="true" tabindex="-1"></a>question is whether it *moderates* the behavioural signals — whether the same</span>
+<span id="cb11-146"><a href="#cb11-146" aria-hidden="true" tabindex="-1"></a>pattern of activity means something different inside different token communities.</span>
+<span id="cb11-147"><a href="#cb11-147" aria-hidden="true" tabindex="-1"></a>Model 2 interacts all three behavioural predictors with the token factor.</span>
+<span id="cb11-148"><a href="#cb11-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-149"><a href="#cb11-149" aria-hidden="true" tabindex="-1"></a><span class="in">```{r m2}</span></span>
+<span id="cb11-150"><a href="#cb11-150" aria-hidden="true" tabindex="-1"></a>m2 <span class="ot">&lt;-</span> <span class="fu">glm</span>(flag <span class="sc">~</span> (tnx_log <span class="sc">+</span> erc20_log <span class="sc">+</span> avgmin_log) <span class="sc">*</span> token_rec,</span>
+<span id="cb11-151"><a href="#cb11-151" aria-hidden="true" tabindex="-1"></a>          <span class="at">family =</span> binomial, <span class="at">data =</span> lr)</span>
+<span id="cb11-152"><a href="#cb11-152" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-153"><a href="#cb11-153" aria-hidden="true" tabindex="-1"></a><span class="co"># Wald intervals: several token × behaviour cells contain (almost) only one</span></span>
+<span id="cb11-154"><a href="#cb11-154" aria-hidden="true" tabindex="-1"></a><span class="co"># class, so profile-likelihood CIs do not converge for those terms.</span></span>
+<span id="cb11-155"><a href="#cb11-155" aria-hidden="true" tabindex="-1"></a><span class="fu">tidy</span>(m2) <span class="sc">%&gt;%</span></span>
+<span id="cb11-156"><a href="#cb11-156" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">OR =</span> <span class="fu">exp</span>(estimate),</span>
+<span id="cb11-157"><a href="#cb11-157" aria-hidden="true" tabindex="-1"></a>         <span class="at">conf.low =</span> <span class="fu">exp</span>(estimate <span class="sc">-</span> <span class="fl">1.96</span> <span class="sc">*</span> std.error),</span>
+<span id="cb11-158"><a href="#cb11-158" aria-hidden="true" tabindex="-1"></a>         <span class="at">conf.high =</span> <span class="fu">exp</span>(estimate <span class="sc">+</span> <span class="fl">1.96</span> <span class="sc">*</span> std.error)) <span class="sc">%&gt;%</span></span>
+<span id="cb11-159"><a href="#cb11-159" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(term, OR, conf.low, conf.high, p.value) <span class="sc">%&gt;%</span></span>
+<span id="cb11-160"><a href="#cb11-160" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(p.value <span class="sc">&lt;</span> <span class="fl">0.05</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-161"><a href="#cb11-161" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(p.value) <span class="sc">%&gt;%</span></span>
+<span id="cb11-162"><a href="#cb11-162" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">3</span>,</span>
+<span id="cb11-163"><a href="#cb11-163" aria-hidden="true" tabindex="-1"></a>               <span class="at">caption =</span> <span class="st">"Model 2 — significant terms only (Wald 95% CIs; full table in the folded code)."</span>)</span>
+<span id="cb11-164"><a href="#cb11-164" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-165"><a href="#cb11-165" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-166"><a href="#cb11-166" aria-hidden="true" tabindex="-1"></a>The table already hints at what is happening: token-level odds ratios in the</span>
+<span id="cb11-167"><a href="#cb11-167" aria-hidden="true" tabindex="-1"></a>hundreds of thousands, interaction ORs indistinguishable from zero. Estimates that</span>
+<span id="cb11-168"><a href="#cb11-168" aria-hidden="true" tabindex="-1"></a>extreme are the signature of near-empty cells — token groups where one class</span>
+<span id="cb11-169"><a href="#cb11-169" aria-hidden="true" tabindex="-1"></a>barely occurs — pushing coefficients toward the boundary. They are shown for</span>
+<span id="cb11-170"><a href="#cb11-170" aria-hidden="true" tabindex="-1"></a>completeness, not interpreted individually; the trustworthy comparison is at the</span>
+<span id="cb11-171"><a href="#cb11-171" aria-hidden="true" tabindex="-1"></a>model level.</span>
+<span id="cb11-172"><a href="#cb11-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-173"><a href="#cb11-173" aria-hidden="true" tabindex="-1"></a><span class="in">```{r compare}</span></span>
+<span id="cb11-174"><a href="#cb11-174" aria-hidden="true" tabindex="-1"></a>lrt <span class="ot">&lt;-</span> <span class="fu">anova</span>(m1, m2, <span class="at">test =</span> <span class="st">"Chisq"</span>)</span>
+<span id="cb11-175"><a href="#cb11-175" aria-hidden="true" tabindex="-1"></a>roc2 <span class="ot">&lt;-</span> <span class="fu">roc</span>(lr<span class="sc">$</span>flag, <span class="fu">fitted</span>(m2), <span class="at">quiet =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-176"><a href="#cb11-176" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-177"><a href="#cb11-177" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(<span class="at">model =</span> <span class="fu">c</span>(<span class="st">"M1: behaviour only"</span>, <span class="st">"M2: + token-type interactions"</span>),</span>
+<span id="cb11-178"><a href="#cb11-178" aria-hidden="true" tabindex="-1"></a>       <span class="at">pseudo_R2 =</span> <span class="fu">c</span>(<span class="fu">mcfadden</span>(m1), <span class="fu">mcfadden</span>(m2)),</span>
+<span id="cb11-179"><a href="#cb11-179" aria-hidden="true" tabindex="-1"></a>       <span class="at">AUC =</span> <span class="fu">c</span>(<span class="fu">as.numeric</span>(<span class="fu">auc</span>(roc1)), <span class="fu">as.numeric</span>(<span class="fu">auc</span>(roc2))),</span>
+<span id="cb11-180"><a href="#cb11-180" aria-hidden="true" tabindex="-1"></a>       <span class="at">AIC =</span> <span class="fu">c</span>(<span class="fu">AIC</span>(m1), <span class="fu">AIC</span>(m2))) <span class="sc">%&gt;%</span></span>
+<span id="cb11-181"><a href="#cb11-181" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">3</span>,</span>
+<span id="cb11-182"><a href="#cb11-182" aria-hidden="true" tabindex="-1"></a>               <span class="at">caption =</span> <span class="st">"Model comparison. The likelihood-ratio test for the added terms is decisive (p &lt; .001) — the interesting question is why."</span>)</span>
+<span id="cb11-183"><a href="#cb11-183" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-184"><a href="#cb11-184" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-185"><a href="#cb11-185" aria-hidden="true" tabindex="-1"></a><span class="in">```{r roc-both}</span></span>
+<span id="cb11-186"><a href="#cb11-186" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-cap: "Both models' ROC curves. The jump is real in-sample — and the next paragraphs explain why it should not be taken at face value."</span></span>
+<span id="cb11-187"><a href="#cb11-187" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(roc1, <span class="at">col =</span> <span class="st">"#2C7FB8"</span>, <span class="at">legacy.axes =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb11-188"><a href="#cb11-188" aria-hidden="true" tabindex="-1"></a>     <span class="at">main =</span> <span class="st">"Adding token context: dramatic — and suspicious"</span>)</span>
+<span id="cb11-189"><a href="#cb11-189" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(roc2, <span class="at">col =</span> <span class="st">"#D95F02"</span>, <span class="at">add =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-190"><a href="#cb11-190" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">"bottomright"</span>,</span>
+<span id="cb11-191"><a href="#cb11-191" aria-hidden="true" tabindex="-1"></a>       <span class="at">legend =</span> <span class="fu">c</span>(<span class="fu">sprintf</span>(<span class="st">"M1: behaviour only (AUC %.2f)"</span>, <span class="fu">auc</span>(roc1)),</span>
+<span id="cb11-192"><a href="#cb11-192" aria-hidden="true" tabindex="-1"></a>                  <span class="fu">sprintf</span>(<span class="st">"M2: + token context (AUC %.2f)"</span>, <span class="fu">auc</span>(roc2))),</span>
+<span id="cb11-193"><a href="#cb11-193" aria-hidden="true" tabindex="-1"></a>       <span class="at">col =</span> <span class="fu">c</span>(<span class="st">"#2C7FB8"</span>, <span class="st">"#D95F02"</span>), <span class="at">lwd =</span> <span class="dv">2</span>, <span class="at">bty =</span> <span class="st">"n"</span>)</span>
+<span id="cb11-194"><a href="#cb11-194" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-195"><a href="#cb11-195" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-196"><a href="#cb11-196" aria-hidden="true" tabindex="-1"></a><span class="in">```{r leakage, include=FALSE}</span></span>
+<span id="cb11-197"><a href="#cb11-197" aria-hidden="true" tabindex="-1"></a>perfect <span class="ot">&lt;-</span> lr <span class="sc">%&gt;%</span></span>
+<span id="cb11-198"><a href="#cb11-198" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(token_rec) <span class="sc">%&gt;%</span></span>
+<span id="cb11-199"><a href="#cb11-199" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">n =</span> <span class="fu">n</span>(), <span class="at">fraud_rate =</span> <span class="fu">mean</span>(flag), <span class="at">.groups =</span> <span class="st">"drop"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-200"><a href="#cb11-200" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(fraud_rate <span class="sc">==</span> <span class="dv">1</span>)</span>
+<span id="cb11-201"><a href="#cb11-201" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb11-202"><a href="#cb11-202" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-203"><a href="#cb11-203" aria-hidden="true" tabindex="-1"></a><span class="fu">### Reading the jump carefully</span></span>
+<span id="cb11-204"><a href="#cb11-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-205"><a href="#cb11-205" aria-hidden="true" tabindex="-1"></a>An AUC of <span class="in">`r round(as.numeric(auc(roc2)), 2)`</span> from a logistic regression should</span>
+<span id="cb11-206"><a href="#cb11-206" aria-hidden="true" tabindex="-1"></a>raise an eyebrow before it raises applause, and here the skepticism pays off. Part</span>
+<span id="cb11-207"><a href="#cb11-207" aria-hidden="true" tabindex="-1"></a>of the improvement is genuine segment structure — Chapter 3's association result</span>
+<span id="cb11-208"><a href="#cb11-208" aria-hidden="true" tabindex="-1"></a>made that expected. But a decisive part of it is simpler:</span>
+<span id="cb11-209"><a href="#cb11-209" aria-hidden="true" tabindex="-1"></a>**<span class="in">`r nrow(perfect)`</span> token levels in this sample coincide perfectly with the fraud</span>
+<span id="cb11-210"><a href="#cb11-210" aria-hidden="true" tabindex="-1"></a>flag** — <span class="in">`r paste(sprintf("*%s* (n = %d)", perfect$token_rec, perfect$n), collapse = " and ")`</span></span>
+<span id="cb11-211"><a href="#cb11-211" aria-hidden="true" tabindex="-1"></a>are flagged fraudulent without exception. Both are known spam-airdrop tokens, and</span>
+<span id="cb11-212"><a href="#cb11-212" aria-hidden="true" tabindex="-1"></a>the likely mechanism runs through how the dataset was built: the fraud list appears</span>
+<span id="cb11-213"><a href="#cb11-213" aria-hidden="true" tabindex="-1"></a>to draw heavily on addresses swept up in those scam ecosystems, so receiving these</span>
+<span id="cb11-214"><a href="#cb11-214" aria-hidden="true" tabindex="-1"></a>tokens is partly a *consequence* of how the label was constructed rather than an</span>
+<span id="cb11-215"><a href="#cb11-215" aria-hidden="true" tabindex="-1"></a>independent behavioural signal. Combined with the missingness artefact found</span>
+<span id="cb11-216"><a href="#cb11-216" aria-hidden="true" tabindex="-1"></a>earlier, the message is consistent: this dataset rewards models that memorise its</span>
+<span id="cb11-217"><a href="#cb11-217" aria-hidden="true" tabindex="-1"></a>construction.</span>
+<span id="cb11-218"><a href="#cb11-218" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-219"><a href="#cb11-219" aria-hidden="true" tabindex="-1"></a>For anyone taking this analysis toward a production model, three practices follow</span>
+<span id="cb11-220"><a href="#cb11-220" aria-hidden="true" tabindex="-1"></a>naturally: validate out-of-time rather than in-sample, so construction artefacts</span>
+<span id="cb11-221"><a href="#cb11-221" aria-hidden="true" tabindex="-1"></a>stop paying; ablate token *identity* and check how much discrimination survives on</span>
+<span id="cb11-222"><a href="#cb11-222" aria-hidden="true" tabindex="-1"></a>behaviour alone (here, an AUC of <span class="in">`r round(as.numeric(auc(roc1)), 2)`</span>); and treat</span>
+<span id="cb11-223"><a href="#cb11-223" aria-hidden="true" tabindex="-1"></a>token context as segment information whose meaning must be re-learned as scam</span>
+<span id="cb11-224"><a href="#cb11-224" aria-hidden="true" tabindex="-1"></a>ecosystems change, not as a stable feature. Read that way, Model 2 is best</span>
+<span id="cb11-225"><a href="#cb11-225" aria-hidden="true" tabindex="-1"></a>understood as strong evidence that token context *carries* signal — and a worked</span>
+<span id="cb11-226"><a href="#cb11-226" aria-hidden="true" tabindex="-1"></a>example of why a fraud analyst never deploys an in-sample 0.98.</span>
+<span id="cb11-227"><a href="#cb11-227" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-228"><a href="#cb11-228" aria-hidden="true" tabindex="-1"></a><span class="fu">## What this chapter established</span></span>
+<span id="cb11-229"><a href="#cb11-229" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-230"><a href="#cb11-230" aria-hidden="true" tabindex="-1"></a>Behaviour alone ranks addresses usefully — token-heavy, plain-transaction-light,</span>
+<span id="cb11-231"><a href="#cb11-231" aria-hidden="true" tabindex="-1"></a>fast-cadence profiles carry materially higher flag odds — and token context adds</span>
+<span id="cb11-232"><a href="#cb11-232" aria-hidden="true" tabindex="-1"></a>real but contaminated lift whose honest assessment requires validation this</span>
+<span id="cb11-233"><a href="#cb11-233" aria-hidden="true" tabindex="-1"></a>cross-sectional dataset cannot provide. The estimates speak for token-active</span>
+<span id="cb11-234"><a href="#cb11-234" aria-hidden="true" tabindex="-1"></a>addresses, against a label of undocumented provenance, in-sample only; the</span>
+<span id="cb11-235"><a href="#cb11-235" aria-hidden="true" tabindex="-1"></a>deployment-grade treatment of this problem — held-out protocols, imbalance</span>
+<span id="cb11-236"><a href="#cb11-236" aria-hidden="true" tabindex="-1"></a>handling, cost-sensitive thresholds — is the subject of the dedicated</span>
+<span id="cb11-237"><a href="#cb11-237" aria-hidden="true" tabindex="-1"></a>machine-learning project that this suite's conclusions point toward.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

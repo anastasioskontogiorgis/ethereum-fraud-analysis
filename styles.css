@@ -1,0 +1,3 @@
+/* light touches only — keep the cosmo defaults */
+h1, h2 { letter-spacing: -0.01em; }
+.quarto-title-banner { background: #1F3864; }

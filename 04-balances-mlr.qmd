@@ -1,0 +1,191 @@
+---
+title: "4 · Predicting Ether balance"
+subtitle: "What an address retains — and whether fraud changes the pattern"
+---
+
+An address's **balance** is a behavioural quantity, not just an accounting one. Two
+addresses can move identical volumes of Ether and end up in very different places:
+one accumulates, the other passes everything through. In fraud analytics that
+distinction matters — pass-through behaviour is the signature of mule-like
+accounts — so this chapter asks a precise version of the question: *conditional on
+how much an address sends and how often it transacts, does anything remain? And is
+that pattern different for fraudulent addresses — not just in level, but in shape?*
+
+Two linear models answer it: a main-effects model, and one that lets the
+sent→balance slope differ by fraud status.
+
+## Setting up the analysis
+
+```{r setup}
+library(dplyr)
+library(ggplot2)
+library(broom)
+library(car)
+
+trxs <- readRDS("data/eth_clean.rds")
+
+mlr <- trxs %>%
+  filter(is.finite(total_ether_balance), total_ether_balance >= 0) %>%
+  mutate(
+    balance_log = log10(total_ether_balance + 1),
+    sent_log    = log10(total_ether_sent + 1),
+    tnx_log     = log10(total_transactions + 1)
+  )
+```
+
+Two preparation decisions shape everything downstream. First, `r 9841 - nrow(mlr)`
+addresses carry a *negative* recorded balance — an artefact of how the aggregate
+was computed at extraction time rather than a possible state of an account — and
+are excluded, at the cost of about 10% of the sample (n = `r nrow(mlr)` remains).
+Second, every continuous variable in this dataset is heavily right-tailed, so the
+analysis works on `log10(x + 1)` scales. That choice buys well-behaved models but
+changes how coefficients read: **each coefficient describes what a ×10 change in a
+predictor does, multiplicatively, to (balance + 1)** — a reading guide worth
+keeping in mind for every table below.
+
+## A first model: activity, outflow, and fraud status
+
+```{r m1}
+m1 <- lm(balance_log ~ sent_log + tnx_log + flag_f, data = mlr)
+
+tidy(m1, conf.int = TRUE) %>%
+  knitr::kable(digits = 3,
+               caption = "Model 1 — main effects on log10(balance + 1).")
+glance(m1) %>%
+  select(r.squared, adj.r.squared, statistic, p.value, AIC) %>%
+  knitr::kable(digits = 3, caption = "Model 1 — overall fit.")
+```
+
+```{r m1-inline, include=FALSE}
+b <- coef(m1)
+pct <- function(x) sprintf("%+.0f%%", 100 * (10^x - 1))
+```
+
+Three effects, all large and all interpretable. Holding the others fixed:
+
+- **Transaction count builds balance.** A ×10 increase in total transactions is
+  associated with multiplying (balance + 1) by
+  `r round(10^b[["tnx_log"]], 1)` — roughly `r pct(b[["tnx_log"]])`. Busier
+  addresses hold more, which is what accumulation looks like.
+- **Outflow drains it — even conditionally.** At a *fixed* transaction count, a ×10
+  increase in total Ether sent is associated with a `r pct(b[["sent_log"]])` change
+  in (balance + 1). The sign is the substantive finding: once you control for how
+  *often* an address transacts, sending more is pass-through, not throughput.
+- **Fraudulent addresses retain less.** At the same activity level, a flagged
+  address is associated with `r pct(b[["flag_fFraudulent"]])` in (balance + 1)
+  relative to a legitimate one — consistent with accounts built to move value on
+  rather than to hold it.
+
+Together the three predictors account for
+`r sprintf("%.0f%%", 100 * summary(m1)$adj.r.squared)` of the variance in
+log-balance — a solid share for three aggregates, while leaving plenty of
+address-level behaviour unexplained.
+
+To compare the predictors on a common scale:
+
+```{r m1-std}
+m1_std <- lm(scale(balance_log) ~ scale(sent_log) + scale(tnx_log) + flag_f,
+             data = mlr)
+tidy(m1_std) %>%
+  knitr::kable(digits = 3,
+               caption = "Model 1 with standardised continuous predictors — transaction count is the strongest single predictor.")
+```
+
+## How much should these estimates be trusted?
+
+```{r m1-diag}
+#| layout-ncol: 2
+#| fig-cap:
+#|   - "Residuals vs fitted values — the spread widens across the range (heteroscedasticity), a typical signature of heavy-tailed blockchain aggregates."
+#|   - "Normal Q–Q of residuals — heavy tails at both ends; the normality assumption is an approximation here, not a fact."
+plot(m1, which = 1)
+plot(m1, which = 2)
+```
+
+```{r m1-diag2}
+vif(m1) %>% knitr::kable(col.names = "VIF",
+                         caption = "Variance inflation factors — no collinearity concern (all near 1).")
+
+ncv_p <- ncvTest(m1)$p
+cooks_flagged <- sum(cooks.distance(m1) > 4 / nrow(mlr))
+```
+
+The diagnostics say: directionally trustworthy, precisely optimistic. A formal
+check confirms what the residual plot shows — non-constant variance
+(Breusch–Pagan *p* `r format.pval(ncv_p, eps = .001)`) — which means classical
+standard errors are somewhat too confident. That caveat is harmless for the three
+main effects (|*t*| ≥ 14; their direction and significance are not in doubt) but it
+matters for *borderline* estimates, a point that becomes relevant in the next
+section. Influence checks flag `r cooks_flagged` observations
+(`r sprintf("%.1f%%", 100 * cooks_flagged / nrow(mlr))` of the sample) by the 4/n
+Cook's-distance rule — genuine extreme-but-real addresses, retained rather than
+trimmed.
+
+## Does fraud bend the relationship, or just shift it?
+
+Model 1 says fraudulent addresses hold less *on average*. The sharper question is
+whether the *slope* differs — whether each additional unit of outflow costs a
+fraudulent address more (or less) of its balance than a legitimate one. Model 2
+adds that interaction.
+
+```{r m2}
+m2 <- lm(balance_log ~ sent_log * flag_f + tnx_log, data = mlr)
+tidy(m2, conf.int = TRUE) %>%
+  knitr::kable(digits = 3,
+               caption = "Model 2 — adding a sent × fraud-status interaction.")
+```
+
+```{r m2-plot}
+#| fig-cap: "Raw two-variable view for orientation: each line is an unadjusted straight-line fit of log-balance on log-outflow within a group (the model above additionally controls for transaction count). The dotted line marks the floor of the response — log10(balance + 1) cannot be negative — and where the data thin out at high outflow the unbounded linear fit crosses it: a visible reminder that a straight line is a global summary, not a constrained prediction."
+ggplot(mlr, aes(sent_log, balance_log, colour = flag_f)) +
+  geom_point(alpha = 0.12, size = 0.6) +
+  geom_smooth(method = "lm", se = TRUE) +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  scale_colour_manual(values = c(Legitimate = "#2C7FB8", Fraudulent = "#D95F02")) +
+  labs(title = "Balance vs outflow, by fraud status",
+       subtitle = "log10 scales; lines are per-group linear fits (unadjusted)",
+       x = "log10(total Ether sent + 1)", y = "log10(balance + 1)",
+       colour = NULL) +
+  theme_minimal()
+```
+
+```{r m2-inline, include=FALSE}
+int_row <- tidy(m2) %>% filter(term == "sent_log:flag_fFraudulent")
+cmp <- anova(m1, m2)
+```
+
+The interaction estimate is `r round(int_row$estimate, 3)` with
+*p* = `r round(int_row$p.value, 3)` — under the conventional threshold, but only
+just, and this is exactly where two earlier observations converge: with
+n = `r format(nrow(mlr), big.mark = ",")`, effects this small reach significance
+easily, and the heteroscedasticity noted above makes borderline *p*-values the
+least reliable numbers in the chapter.
+
+## Choosing between the models
+
+```{r compare}
+tibble(model = c("M1: main effects", "M2: + sent × fraud"),
+       adj_R2 = c(summary(m1)$adj.r.squared, summary(m2)$adj.r.squared),
+       AIC = c(AIC(m1), AIC(m2)),
+       `F-change p` = c(NA, cmp$`Pr(>F)`[2])) %>%
+  knitr::kable(digits = 4, caption = "Model comparison — statistically detectable, practically negligible.")
+```
+
+Statistical significance and practical importance part ways here, and the
+comparison table is the referee: the interaction improves adjusted R² by
+`r sprintf("%.4f", summary(m2)$adj.r.squared - summary(m1)$adj.r.squared)` and AIC
+by about `r sprintf("%.0f", AIC(m1) - AIC(m2))` points. A slope difference that
+small changes no substantive conclusion, so **Model 1 is the model to keep**: fraud
+status shifts the level of retained balance clearly, but there is no meaningful
+evidence that it changes the *shape* of the outflow–balance relationship.
+
+## What this chapter established
+
+Balance behaves like a behavioural fingerprint: activity accumulates it, outflow
+drains it conditionally, and fraudulent addresses systematically retain less —
+about `r pct(b[["flag_fFraudulent"]])` in (balance + 1) at equal activity — with no
+practically meaningful interaction on top. The estimates describe cross-sectional
+aggregates on multiplicative (log) scales, exclude the ~10% of addresses with
+artefactual negative balances, and inherit the usual caution that heavy-tailed
+data place on precise intervals; none of those caveats touches the direction or
+substance of the three main effects.

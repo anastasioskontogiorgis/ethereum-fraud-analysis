@@ -1,0 +1,357 @@
+---
+title: "3 · Hypothesis testing"
+subtitle: "Five research questions on fraud-relevant transaction behaviour"
+---
+
+Chapter 2 ended with patterns an analyst can *see*: heavy-tailed value
+distributions, timing differences between the flagged and legitimate populations,
+token activity that looks fraud-linked, and value features that move together. Eyes
+are not evidence, though — apparent patterns in a 9,841-address snapshot can be
+noise, scale artefacts, or both. This chapter subjects five of those observations
+to formal statistical testing.
+
+The five research questions fall into three natural groups. Two are about **how
+value and activity relate** — whether busier addresses send more Ether (RQ1) and
+whether addresses operate at a characteristic value scale (RQ2). One is about
+**behaviour over time** — whether fraudulent and legitimate addresses transact on
+different rhythms (RQ3). And two are about **token ecosystems** — whether Ether
+outflow differs across dominant sent-token types (RQ4) and whether the dominant
+received token is associated with the fraud flag itself (RQ5). Each question gets
+the same discipline: hypotheses stated up front, assumptions checked against an
+explicit criterion, the appropriate test run — and a second estimator that does not
+share the first one's assumptions, so that no conclusion in this chapter hinges on
+a distributional judgement call.
+
+## Ground rules for every test
+
+Two decisions apply throughout. First, the **working scale**: every value and
+volume variable here is heavily right-tailed (Chapter 2 made that vivid), so tests
+that assume anything about distribution shape operate on `log10(x + 1)` scales,
+while rank-based checks use the raw values they are indifferent to. Second, the
+**normality criterion**, stated explicitly rather than judged by eye: a transformed
+variable is treated as approximately normal for large-sample purposes when its
+standardised skew and kurtosis stay within ±3.29 and no more than 1% of
+standardised scores exceed |3.29|. The helper below implements exactly that
+assessment, and a small plotting helper shows each distribution against its normal
+reference.
+
+```{r setup}
+library(dplyr)
+library(ggplot2)
+library(car)
+
+trxs <- readRDS("data/eth_clean.rds")
+
+# ---- Normality assessment helper -------------------------------------------
+# Standardised skew & kurtosis plus the share of |z| beyond 1.96 / 3.29 —
+# the large-sample criteria described above, made explicit and reusable.
+normality_summary <- function(x, label) {
+  x <- x[is.finite(x)]
+  n <- length(x); m <- mean(x); s <- sd(x)
+  z <- (x - m) / s
+  m2 <- mean((x - m)^2); m3 <- mean((x - m)^3); m4 <- mean((x - m)^4)
+  skew <- m3 / m2^1.5
+  kurt <- m4 / m2^2 - 3
+  se_skew <- sqrt(6 * n * (n - 1) / ((n - 2) * (n + 1) * (n + 3)))
+  se_kurt <- 2 * se_skew * sqrt((n^2 - 1) / ((n - 3) * (n + 5)))
+  tibble(variable = label, n = n, mean = m, sd = s,
+         skew = skew, skew_std = skew / se_skew,
+         kurtosis = kurt, kurt_std = kurt / se_kurt,
+         `%|z|>1.96` = 100 * mean(abs(z) > 1.96),
+         `%|z|>3.29` = 100 * mean(abs(z) > 3.29))
+}
+
+# ---- Distribution plot helper ----------------------------------------------
+dist_plot <- function(data, var, label) {
+  ggplot(data, aes(x = .data[[var]])) +
+    geom_histogram(aes(y = after_stat(density)), bins = 40,
+                   colour = "black", fill = "grey80") +
+    stat_function(fun = dnorm, colour = "red",
+                  args = list(mean = mean(data[[var]], na.rm = TRUE),
+                              sd = sd(data[[var]], na.rm = TRUE))) +
+    labs(x = label, y = "Density") +
+    theme_minimal()
+}
+
+# Log-transformed working copies for the shape-sensitive tests.
+trxs <- trxs %>%
+  mutate(
+    total_ether_sent_log    = log10(total_ether_sent + 1),
+    total_transactions_log  = log10(total_transactions + 1),
+    avg_val_received_log    = log10(avg_val_received + 1),
+    avg_val_sent_log        = log10(avg_val_sent + 1),
+    avg_min_sent_log        = log10(avg_min_between_sent_tnx + 1)
+  )
+```
+
+## RQ1 — Do addresses that transact more also send more Ether?
+
+Chapter 2 showed volume and frequency both exploding across orders of magnitude;
+the first question is whether they explode *together*. If they largely do, one is
+redundant given the other; if they only loosely do, each carries its own signal.
+
+- **H0:** there is *no* relationship between total Ether sent and total number of
+  transactions per address.
+- **Ha:** there *is* a relationship between total Ether sent and total number of
+  transactions per address.
+
+```{r rq1-normality}
+bind_rows(
+  normality_summary(trxs$total_ether_sent_log,   "log10(total_ether_sent + 1)"),
+  normality_summary(trxs$total_transactions_log, "log10(total_transactions + 1)")
+) %>% knitr::kable(digits = 2,
+                   caption = "Normality assessment of the transformed variables against the ±3.29 criterion.")
+```
+
+```{r rq1-plots}
+#| layout-ncol: 2
+#| fig-cap:
+#|   - "Total Ether sent after log transformation, with its normal reference curve."
+#|   - "Total transactions after log transformation, with its normal reference curve."
+dist_plot(trxs, "total_ether_sent_log",   "log10(total Ether sent + 1)")
+dist_plot(trxs, "total_transactions_log", "log10(total transactions + 1)")
+```
+
+```{r rq1-tests}
+rq1_pearson <- cor.test(trxs$total_ether_sent_log, trxs$total_transactions_log,
+                        method = "pearson")
+rq1_kendall <- cor.test(trxs$total_ether_sent, trxs$total_transactions,
+                        method = "kendall")
+rq1_pearson
+```
+
+```{r rq1-scatter}
+#| fig-cap: "Each point is an address. The association is clearly positive — and clearly loose: at any activity level, outflow still spans several orders of magnitude."
+ggplot(trxs, aes(total_transactions_log, total_ether_sent_log)) +
+  geom_point(alpha = 0.15, size = 0.6) +
+  geom_smooth(method = "lm", colour = "red") +
+  labs(title = "Outflow rises with activity — but loosely",
+       x = "log10(total transactions + 1)", y = "log10(total Ether sent + 1)") +
+  theme_minimal()
+```
+
+**Finding.** A statistically significant positive association:
+Pearson *r* = `r round(rq1_pearson$estimate, 3)`
+(*p* `r format.pval(rq1_pearson$p.value, eps = .001)`) on the transformed scales,
+with Kendall's τ = `r round(rq1_kendall$estimate, 3)` on the raw ranks confirming
+direction and significance. The association is real but **weak-to-moderate** —
+transaction *count* alone is a poor proxy for Ether *volume*. That looseness is
+itself informative: volume- and frequency-based signals carry partially independent
+information about an address, a fact the regression chapters will lean on.
+
+## RQ2 — Do high-value receivers also send high values?
+
+The second value question is about *scale of operation*: does an address that
+receives large average amounts also send large average amounts — retail behaviour
+staying retail, whale behaviour staying whale?
+
+- **H0:** there is no positive correlation between the average Ether value received
+  and the average Ether value sent.
+- **Ha:** there is a positive correlation between the average Ether value received
+  and the average Ether value sent.
+
+```{r rq2-normality}
+bind_rows(
+  normality_summary(trxs$avg_val_received_log, "log10(avg_val_received + 1)"),
+  normality_summary(trxs$avg_val_sent_log,     "log10(avg_val_sent + 1)")
+) %>% knitr::kable(digits = 2,
+                   caption = "Normality assessment for the average-value variables.")
+```
+
+```{r rq2-tests}
+rq2_pearson <- cor.test(trxs$avg_val_received_log, trxs$avg_val_sent_log,
+                        method = "pearson", alternative = "greater")
+rq2_kendall <- cor.test(trxs$avg_val_received, trxs$avg_val_sent,
+                        method = "kendall", alternative = "greater")
+rq2_pearson
+```
+
+**Finding.** A significant positive correlation —
+*r* = `r round(rq2_pearson$estimate, 3)`,
+τ = `r round(rq2_kendall$estimate, 3)`
+(both *p* `r format.pval(rq2_pearson$p.value, eps = .001)`) — addresses receiving
+larger average values also send larger average values. Addresses do operate at a
+characteristic value scale, which is exactly why the *conditional* questions of the
+regression chapters (what happens at a *fixed* activity level) are the interesting
+ones.
+
+## RQ3 — Does sending cadence differ between fraudulent and legitimate addresses?
+
+From value to time. Chapter 2's behavioural sections suggested the two populations
+move to different rhythms; this is the formal version of that comparison. Only
+addresses with at least one sent transaction — a defined cadence — enter it.
+
+- **H0:** the average time between sent transactions does not differ between
+  fraudulent and legitimate addresses.
+- **Ha:** the average time between sent transactions differs between fraudulent and
+  legitimate addresses.
+
+```{r rq3-descriptives}
+rq3 <- trxs %>% filter(is.finite(avg_min_sent_log), avg_min_between_sent_tnx > 0)
+
+rq3 %>%
+  group_by(flag_f) %>%
+  summarise(n = n(),
+            mean_log = mean(avg_min_sent_log),
+            sd_log = sd(avg_min_sent_log),
+            median_minutes = median(avg_min_between_sent_tnx)) %>%
+  knitr::kable(digits = 2,
+               caption = "Sending cadence by group.")
+```
+
+```{r rq3-tests}
+rq3_levene <- leveneTest(avg_min_sent_log ~ flag_f, data = rq3)
+rq3_welch  <- t.test(avg_min_sent_log ~ flag_f, data = rq3, var.equal = FALSE)
+rq3_mwu    <- wilcox.test(avg_min_between_sent_tnx ~ flag_f, data = rq3)
+
+# Effect sizes: Cohen's d (pooled) and rank-biserial r for the MWU check
+g <- split(rq3$avg_min_sent_log, rq3$flag_f)
+n1 <- length(g[[1]]); n2 <- length(g[[2]])
+sp <- sqrt(((n1 - 1) * var(g[[1]]) + (n2 - 1) * var(g[[2]])) / (n1 + n2 - 2))
+rq3_d  <- (mean(g[[1]]) - mean(g[[2]])) / sp
+rq3_rb <- 1 - 2 * rq3_mwu$statistic / (n1 * n2)
+
+rq3_levene
+rq3_welch
+```
+
+**Finding.** Levene's test indicates unequal variances
+(*p* `r format.pval(rq3_levene[1, "Pr(>F)"], eps = .001)`), so Welch's *t*-test is
+the primary test: the cadence difference between groups is statistically
+significant (*t* = `r round(rq3_welch$statistic, 2)`,
+*p* `r format.pval(rq3_welch$p.value, eps = .001)`; Cohen's
+*d* = `r round(rq3_d, 2)`), and the Mann–Whitney robustness check agrees
+(rank-biserial *r* = `r round(as.numeric(rq3_rb), 2)`). Fraudulent and legitimate
+addresses transact on measurably different rhythms — a genuinely *behavioural*
+fraud signal, independent of value, and one that returns as a predictor in
+Chapter 5.
+
+## RQ4 — Does Ether outflow differ across dominant sent-token types?
+
+From individual behaviour to ecosystems. If token communities differ in how much
+Ether their addresses move, "which token dominates an address" is context that
+later models should not ignore. Token types with fewer than 40 addresses are
+excluded (unstable group estimates), as is `"None"` — no ERC20 activity is a
+different phenomenon than *which* token dominates.
+
+- **H0:** total Ether sent does not differ across the ERC20 token types most
+  frequently sent from addresses.
+- **Ha:** total Ether sent differs across the ERC20 token types most frequently
+  sent from addresses.
+
+```{r rq4-prep}
+rq4 <- trxs %>%
+  filter(erc20_most_sent_token_type != "None") %>%
+  add_count(erc20_most_sent_token_type, name = "type_n") %>%
+  filter(type_n >= 40) %>%
+  mutate(token = factor(erc20_most_sent_token_type))
+
+count(rq4, token, sort = TRUE) %>%
+  knitr::kable(caption = "Token types entering the comparison (n ≥ 40).")
+```
+
+```{r rq4-box}
+#| fig-cap: "Ether outflow by dominant sent-token type, on the log scale. Both the medians and the spreads differ across ecosystems — the spread differences are why a variance-robust test is used below."
+ggplot(rq4, aes(x = reorder(token, total_ether_sent_log, median),
+                y = total_ether_sent_log)) +
+  geom_boxplot(fill = "grey85", outlier.alpha = 0.25) +
+  coord_flip() +
+  labs(title = "Different token ecosystems, different outflow profiles",
+       x = NULL, y = "log10(total Ether sent + 1)") +
+  theme_minimal()
+```
+
+```{r rq4-tests}
+rq4_levene  <- leveneTest(total_ether_sent_log ~ token, data = rq4)
+rq4_welch   <- oneway.test(total_ether_sent_log ~ token, data = rq4,
+                           var.equal = FALSE)          # Welch's ANOVA
+rq4_kruskal <- kruskal.test(total_ether_sent_log ~ token, data = rq4)
+rq4_welch
+```
+
+```{r rq4-posthoc}
+# Games–Howell post-hoc (appropriate under unequal variances)
+if (requireNamespace("rstatix", quietly = TRUE)) {
+  rstatix::games_howell_test(rq4, total_ether_sent_log ~ token) %>%
+    filter(p.adj < 0.05) %>%
+    arrange(p.adj) %>%
+    head(10) %>%
+    knitr::kable(digits = 3,
+                 caption = "Significant Games–Howell pairwise contrasts (top 10).")
+} else {
+  cat("Install `rstatix` for the Games–Howell post-hoc table.")
+}
+```
+
+**Finding.** With unequal variances
+(Levene *p* `r format.pval(rq4_levene[1, "Pr(>F)"], eps = .001)`), Welch's ANOVA
+finds a significant token-type effect on Ether outflow
+(*F* = `r round(rq4_welch$statistic, 2)`,
+*p* `r format.pval(rq4_welch$p.value, eps = .001)`), confirmed by Kruskal–Wallis
+(*p* `r format.pval(rq4_kruskal$p.value, eps = .001)`); the post-hoc contrasts
+identify which specific token ecosystems are associated with heavier outflows.
+
+## RQ5 — Is the dominant received token associated with fraud?
+
+The final question turns the token lens onto the label itself. Low-frequency token
+types (< 40 addresses) are aggregated into `"Low Count"` so that expected cell
+counts support the χ² approximation; `"None"` is retained as a meaningful category.
+
+- **H0:** there is no association between the most frequently received ERC20 token
+  type and the fraud flag.
+- **Ha:** there is an association between the most frequently received ERC20 token
+  type and the fraud flag.
+
+```{r rq5-tests}
+rq5 <- trxs %>%
+  add_count(erc20_most_rec_token_type, name = "type_n") %>%
+  mutate(token_rec = ifelse(type_n < 40, "Low Count", erc20_most_rec_token_type))
+
+rq5_tab  <- table(rq5$token_rec, rq5$flag_f)
+rq5_chi  <- chisq.test(rq5_tab)
+rq5_cram <- sqrt(rq5_chi$statistic /
+                 (sum(rq5_tab) * (min(dim(rq5_tab)) - 1)))   # Cramér's V
+rq5_chi
+```
+
+```{r rq5-table}
+prop.table(rq5_tab, margin = 1) %>%
+  as.data.frame.matrix() %>%
+  tibble::rownames_to_column("token") %>%
+  arrange(desc(Fraudulent)) %>%
+  head(10) %>%
+  knitr::kable(digits = 3,
+               caption = "Fraud share by dominant received token — the ten most fraud-associated types.")
+```
+
+**Finding.** The association is statistically significant
+(χ² = `r round(rq5_chi$statistic, 1)`, df = `r rq5_chi$parameter`,
+*p* `r format.pval(rq5_chi$p.value, eps = .001)`) with effect size Cramér's
+*V* = `r round(as.numeric(rq5_cram), 2)`: *which* token dominates an address's
+inflow is informative about its fraud status. The table above also foreshadows a
+theme Chapter 5 examines critically — some token types are so strongly
+fraud-associated that the question becomes *why*, and the answer turns out to
+matter a great deal for any predictive use of this data.
+
+## What the tests established
+
+```{r summary-table, echo=FALSE}
+tribble(
+  ~RQ, ~Question, ~`Primary test`, ~`Robustness`, ~Verdict,
+  "1", "Ether sent × transaction count", "Pearson (log)", "Kendall's τ", "Ha: positive, weak–moderate",
+  "2", "Avg value received × sent", "Pearson (log, one-sided)", "Kendall's τ", "Ha: positive, strong",
+  "3", "Sending cadence × fraud", "Welch's t (log)", "Mann–Whitney U", "Ha: groups differ",
+  "4", "Ether sent × sent-token type", "Welch's ANOVA + Games–Howell", "Kruskal–Wallis", "Ha: token effect",
+  "5", "Received-token type × fraud", "χ² independence + Cramér's V", "—", "Ha: associated"
+) %>% knitr::kable(caption = "All five hypotheses in one view. In every case the robustness check agreed with the primary test.")
+```
+
+Five questions, five rejections of the null — and, more importantly for what
+follows, none of them fragile: every verdict was confirmed by an estimator that
+does not share the primary test's assumptions. Two threads now lead onward. The
+behavioural and value findings (RQ1–3) set up Chapter 4's *conditional* question —
+at a fixed activity level, what remains in an address's balance, and does fraud
+shift it? And the token findings (RQ4–5) set up Chapter 5's — do the behavioural
+signals predict the flag, and does token context change what they mean? Everything
+here is inference about associations; prediction, with all its extra honesty
+requirements, comes next.

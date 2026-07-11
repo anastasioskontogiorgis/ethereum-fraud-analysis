@@ -1,0 +1,38 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "Ethereum Fraud Analytics"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Overview
+      - href: 01-data.qmd
+        text: Data
+      - href: 02-exploration.ipynb
+        text: Exploration (Python)
+      - href: 03-inference.qmd
+        text: Hypothesis testing
+      - href: 04-balances-mlr.qmd
+        text: Linear regression
+      - href: 05-fraud-logr.qmd
+        text: Logistic regression
+      - href: 06-conclusions.qmd
+        text: Conclusions
+  page-navigation: true
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+    code-fold: true
+    code-tools: true
+    fig-width: 8
+    fig-height: 5
+
+execute:
+  freeze: false
+  warning: false
+  message: false

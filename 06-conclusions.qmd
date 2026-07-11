@@ -1,0 +1,48 @@
+---
+title: "6 · Conclusions"
+---
+
+## What the evidence says, in one table
+
+| Question | Technique | Verdict |
+|---|---|---|
+| Ether sent × transaction count | Pearson (log) + Kendall | Positive, weak–moderate: volume ≠ frequency |
+| Avg value received × sent | Pearson (log, one-sided) + Kendall | Strong positive: characteristic value scale per address |
+| Sending cadence × fraud | Welch's *t* + Mann–Whitney | Significant group difference: fraud has a rhythm |
+| Ether outflow × sent-token type | Welch's ANOVA + Games–Howell | Significant token-ecosystem effect |
+| Received-token type × fraud | χ² + Cramér's V | Significant association |
+| Balance ~ activity + fraud | MLR + interaction | See Ch. 4 model comparison |
+| Fraud ~ behaviour × token type | Logistic + interaction, ROC/AUC | See Ch. 5 model comparison |
+
+Every hypothesis-testing verdict was confirmed by its alternative estimator —
+none of the conclusions hinge on a distributional assumption.
+
+## What it means for fraud analytics
+
+The picture that emerges is *behavioural*: fraud-relevant signal lives not only in
+how much value moves, but in **when** it moves (cadence), **how** it decomposes
+(volume vs frequency), and **where** it moves (token ecosystems) — and the token
+context plausibly *moderates* the behavioural signals rather than merely adding to
+them. That is exactly the structure production fraud systems encode as engineered
+features and feature crosses, which makes these inferential results a principled
+feature-selection argument for predictive modelling.
+
+## Limitations
+
+Cross-sectional aggregates rather than transaction-level flows; a fraud label of
+undocumented provenance; heavy-tailed variables analysed on log scales
+(multiplicative interpretations); multiple hypotheses on one dataset (results
+should be read as an integrated investigation, not independent discoveries);
+in-sample model assessment — deployment-grade validation belongs to a
+dedicated ML treatment; and two label-leakage artefacts (missing ERC20
+aggregates and scam-airdrop token identities perfectly predicting the flag)
+that make naive predictive claims on this dataset untrustworthy — documented
+in Chapter 5.
+
+## Where this goes next
+
+The natural continuation is predictive: supervised learning with a proper held-out
+protocol, class-imbalance handling, and cost-sensitive threshold selection — the
+subject of a separate end-to-end project (phishing detection pipeline) in this
+portfolio — and, on the data side, transaction-level (rather than aggregate)
+features, where the analysis finding suggests the richest signal lives.

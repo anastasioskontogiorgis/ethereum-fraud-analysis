@@ -1,0 +1,23 @@
+{
+  "index.qmd": {
+    "index.html": "13edcf3d"
+  },
+  "01-data.qmd": {
+    "01-data.html": "2e0277c7"
+  },
+  "02-exploration.ipynb": {
+    "02-exploration.html": "7e4f22b4"
+  },
+  "03-inference.qmd": {
+    "03-inference.html": "bf9b66bc"
+  },
+  "04-balances-mlr.qmd": {
+    "04-balances-mlr.html": "3818c0e9"
+  },
+  "05-fraud-logr.qmd": {
+    "05-fraud-logr.html": "48515b42"
+  },
+  "06-conclusions.qmd": {
+    "06-conclusions.html": "5ca9e944"
+  }
+}
